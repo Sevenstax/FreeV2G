@@ -1,0 +1,142 @@
+     oooooooooooo                              oooooo     oooo   .oooo.     .oooooo.    
+     `888'     `8                               `888.     .8'  .dP""Y88b   d8P'  `Y8b   
+      888         oooo d8b  .ooooo.   .ooooo.    `888.   .8'         ]8P' 888           
+      888oooo8    `888""8P d88' `88b d88' `88b    `888. .8'        .d8P'  888           
+      888    "     888     888ooo888 888ooo888     `888.8'       .dP'     888     ooooo 
+      888          888     888    .o 888    .o      `888'      .oP     .o `88.    .88'  
+     o888o        d888b    `Y8bod8P' `Y8bod8P'       `8'       8888888888  `Y8bood8P'   
+
+## INTRODUCTION
+
+FreeV2G is a reference implementation in python to control the Codico Whitebeet ISO15118 module. For more information on the Whitebeet module please visit https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118 or get in contact with Codico directly.
+
+## FEATURES
+
+The main feature of this implementation is the parsing of the protocol used to communicate with the Whitebeet. Other features are the whitebeet class which answers the parameter requests of the Whitebeet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
+
+### Control Pilot
+
+There is a basic control pilot implemenation which detects the EV plugin and sets the duty cycle to 5% when the module is ready to receive the SLAC reqeust message from the EV. When the charging session is finished the oscillator shuts down automatically.
+
+### SLAC
+
+SLAC is performed automatically by the Whitebeet. A notification is received and the application is ready for high-level communication.
+
+#### V2G High-Level Communication
+
+When SLAC was succefully performed the EVSE and the EV are in same network and the high-level communication can be started. The EV will try to discover the EVSE with the SDP protocol and will then connect to the EVSE. The EVSE will choose one of the protocols the EV provided and a V2G session will be started. The service discovery, charge parameter discovery and authorization is performed and the charging loop is started. The EV will continue to charge until it decides to stop the session.
+
+## GETTING FreeV2G
+
+To get started first clone the repository
+
+```console
+$ git clone https://github.com/SEVENSTAX/FreeV2G
+```
+
+This will get you the newest version of the repository.
+Please make sure to install scapy. The simplest way is using pip to install it.
+
+```console
+$ pip install scapy
+```
+
+## GETTING STARTED
+
+Make sure that EVSE and EV are not physically connected on the PLC interface.
+
+Run the Application by typing
+
+```console
+$ python3 Application.py "eth0"
+```
+
+You should see the following output
+
+```console
+Welcome to Codico Whitebeet EVSE reference implementation
+Initiating framing interface
+iface: eth0, mac: 00:01:01:63:77:33
+Set the CP mode to EVSE
+Set the CP duty cycle to 100%
+Start the CP service
+Start SLAC in EVSE mode
+Wait until an EV connects
+```
+
+Now, physically connect the PLC interface of the EV to the EVSE
+
+```console
+EV connected
+Start SLAC matching
+Set duty cycle to 5%
+SLAC matching successful
+Set V2G mode to EVSE
+Start V2G
+"Session started" received
+Protocol: 2
+Session ID: f3976451aedd64ce
+EVCC ID: 000101637730
+"Request EVSE ID" received
+Set EVSE ID: DE*ABC*E*00001*01
+"Request Authorization" received
+Authorize the vehicle? Type "yes" or "no" in the next 59s:
+```
+
+Now you can authorize the vehicle by typing "yes", the application will continue. All the parameters that are exchanged between the vehicle and the charging station are printed to the console.
+
+```console
+Vehicle was authorized by user!
+"Request Schedules" received
+Max entries: 2
+Set the schedule: [(0, 65535, 25000), (1, 65535, 25000)]
+"Request Discovery Charge Parameters" received
+EV maximum current: 20A
+EV maximum power: 8000W
+EV maximum voltage: 400V
+Bulk SOC: 50%
+SOC: 50%
+"Request Cable Check Status" received
+"Request Cable Check Parameters" received
+SOC: 50%
+"Request Pre Charge Parameters" received
+EV target voltage: 380V
+EV target current: 50A
+SOC: 50%
+"Request Start Charging" received
+Schedule ID: 0
+Time anchor: 0
+EV power profile: [(0, 10000)]
+SOC: 50%
+Charging complete: False
+"Request Charge Loop Parameters" received
+EV maximum current: 20A
+EV maximum voltage: 400V
+EV maximum power: 8000W
+EV target voltage: 380V
+EV target current: 16A
+SOC: 50%
+Charging complete: False
+```
+
+... charge loop continues until EV stops charging...
+
+```console
+"Request Charge Loop Parameters" received
+EV maximum current: 20A
+EV maximum voltage: 400V
+EV maximum power: 8000W
+EV target voltage: 380V
+EV target current: 16A
+SOC: 50%
+Charging complete: False
+"Request Stop Charging" received
+Schedule ID: 0
+SOC: 50%
+Charging complete: 1
+"Request Post Charge Parameters" received
+SOC: 50%
+"Session stopped" received
+EVSE loop finished
+Goodbye!
+```
