@@ -8,19 +8,20 @@
 
 ## INTRODUCTION
 
-FreeV2G is a reference implementation in python to control the Codico Whitebeet ISO15118 module. For more information on the Whitebeet module please visit https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118 or get in contact with Codico directly.
+FreeV2G is a reference implementation in python to control the 8DEVICES WHITE beet ISO15118 EI EVSE module. For more information about the WHITE beet module please visit https://www.codico.com/de/white-beet-ei-evse-embedded-iso15118-module. An evaulation board for this module can be found here:
+https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118.
 
 ## FEATURES
 
-The main feature of this implementation is the parsing of the protocol used to communicate with the Whitebeet. Other features are the whitebeet class which answers the parameter requests of the Whitebeet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
+The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE beet. Other features are the WHITE beet class which answers the parameter requests of the WHITE beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
 
 ### Control Pilot
 
-There is a basic control pilot implemenation which detects the EV plugin and sets the duty cycle to 5% when the module is ready to receive the SLAC reqeust message from the EV. When the charging session is finished the oscillator shuts down automatically.
+There is a basic control pilot implemenation which detects the EV plugin and sets the duty cycle to 5% when the module is ready to receive the SLAC request message from the EV. When the charging session is finished the oscillator shuts down automatically.
 
 ### SLAC
 
-SLAC is performed automatically by the Whitebeet. A notification is received and the application is ready for high-level communication.
+SLAC is performed automatically by the WHITE beet. A notification is received and the application is ready for high-level communication.
 
 #### V2G High-Level Communication
 
