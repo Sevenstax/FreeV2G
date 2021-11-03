@@ -37,6 +37,26 @@ class Whitebeet():
         self.v2g_sub_get_mode = 0x41
         self.v2g_sub_start = 0x42
         self.v2g_sub_stop = 0x43
+
+        # EV sub IDs
+        self.v2g_sub_set_configuration = 0xA0
+        self.v2g_sub_get_configuration = 0xA1
+        self.v2g_sub_set_dc_charging_parameters = 0xA2
+        self.v2g_sub_update_dc_charging_parameters = 0xA3
+        self.v2g_sub_get_dc_charging_parameters = 0xA4
+        self.v2g_sub_set_Ac_charging_parameters = 0xA5
+        self.v2g_sub_update_ac_charging_parameters = 0xA6
+        self.v2g_sub_get_ac_charging_parameters = 0xA7
+        self.v2g_sub_set_charging_profile = 0xA8
+        self.v2g_sub_start_sessoin = 0xA9
+        self.v2g_sub_start_cable_check = 0xAA
+        self.v2g_sub_start_pre_charging = 0xAB
+        self.v2g_sub_start_charging = 0xAC
+        self.v2g_sub_stop_charging = 0xAD
+        self.v2g_sub_stop_sessoin = 0xAE
+        
+
+        # EVSE sub IDs
         self.v2g_sub_set_supported_protocols = 0x60
         self.v2g_sub_get_supported_protocols = 0x61
         self.v2g_sub_set_sdp_config = 0x62
@@ -379,6 +399,365 @@ class Whitebeet():
         Stops the v2g service.
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop, None)
+
+    # EV 
+    def v2gSetConfigruation(self, evid, protocol_count, protocol, payment_method_count, payment_method, energy_transfer_mode_count, energy_transfer_mode, battery_capacity):
+        """
+        Sets the configuration for EV mode
+        """
+        #if evid is not None and (not isinstance(evid, list) or len(evid) != 6):
+        if evid is not None and (not isinstance(evid, list) or len(evid) != 6):
+            raise ValueError("evid needs to be of type list with length 6")
+        elif not isinstance(protocol_count, int) or not (1 <= protocol_count <= 2):
+            raise ValueError("protocol_count needs to be of type int with value 1 or 2")
+        elif protocol is not None and (not isinstance(protocol, list) or len(protocol) != protocol_count):
+            raise ValueError("protocol needs to be of type int with value 0 or 1")
+        elif not isinstance(payment_method_count, int) or payment_method_count != 0:
+            raise ValueError("payment_method_count needs to be of type int with value 1")
+        elif not isinstance(payment_method, int) or payment_method != 0:
+            raise ValueError("payment_method needs to be of type int with value 0")
+        elif not isinstance(energy_transfer_mode_count, int) or not (1 <= energy_transfer_mode_count <= 6):
+            raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
+        elif energy_transfer_mode is not None and (not isinstance(energy_transfer_mode, list) or len(energy_transfer_mode) != energy_transfer_mode_count):
+            raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
+        elif battery_capacity is not None and (not isinstance(battery_capacity, list) or len(battery_capacity) != 3):
+            raise ValueError("payment_method needs to be of type list with length 3")
+        else:
+            payload = b""
+            for i in evid:
+                payload += i.to_bytes(1, "big")
+            payload += protocol_count.to_bytes(1, "big")
+            payload += b"\0x00"
+            if protocol_count == 2:
+                payload += b"\0x01"
+            payload += energy_transfer_mode_count.to_bytes(1, "big")
+            for mode in energy_transfer_mode:
+                if mode not in range(0, 5):
+                    raise ValueError("values of energy_transfer_mode out of range")
+                else:
+                    payload += mode.to_bytes(1, "big")
+            payload += battery_capacity[0].to_bytes(1, "big")
+            payload += battery_capacity[1].to_bytes(1, "big")
+            payload += battery_capacity[2].to_bytes(1, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
+
+    def v2gGetConfiguration(self, data):
+        """
+        Get the configuration of EV mdoe
+        Returns dictionary
+        """
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_configuration, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        self.payloadReaderReadInt(1)
+        ret["evid"] = self.payloadReaderReadBytes(6)
+        
+        ret["protocol_count"] = self.payloadReaderReadInt(1)
+        prot_list = []
+        for i in range(ret["protocol_count"]):
+            prot_list.append(self.payloadReaderReadInt(1))
+        ret["protocol"] = prot_list
+        
+        ret["payment_method_count"] = self.payloadReaderReadInt(1)
+        ret["payment_method"] = self.payloadReaderReadInt(1)
+
+        ret["energy_transfer_method_count"] = self.payloadReaderReadInt(1)
+        met_list = []
+        for i in range(ret["protocol_count"]):
+            met_list.append(self.payloadReaderReadInt(1))
+        ret["energy_transfer_mode"] = met_list
+        ret["battery_capacity"] = self.payloadReaderReadInt(1)
+        ret["departure_time"] = self.payloadReaderReadInt(4)
+        self.payloadReaderFinalize()
+        return ret
+
+    def v2SetDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current, full_suc, bulk_soc, energy_request, departure_time):
+        """
+        Sets the DC charging parameters of the EV
+        """
+        if min_voltage is not None and (not isinstance(min_voltage, list) or len(min_voltage) != 3):
+            raise ValueError("Parameter min_voltage needs to be of type list with length 3")
+        elif min_current is not None and (not isinstance(min_current, list) or len(min_current) != 3):
+            raise ValueError("Parameter min_current needs to be of type list with length 3")
+        elif min_power is not None and (not isinstance(min_power, list) or len(min_power) != 3):
+            raise ValueError("Parameter min_power needs to be of type list with length 3")
+        elif max_voltage is not None and (not isinstance(max_voltage, list) or len(max_voltage) != 3):
+            raise ValueError("Parameter max_voltage needs to be of type list with length 3")
+        elif max_current is not None and (not isinstance(max_current, list) or len(max_current) != 3):
+            raise ValueError("Parameter max_current needs to be of type list with length 3")
+        elif max_power is not None and (not isinstance(max_power, list) or len(max_power) != 3):
+            raise ValueError("Parameter max_power needs to be of type list with length 3")
+        elif not isinstance(soc, int) or soc not in range(0, 100):
+            raise ValueError("Parameter soc needs to be of type int with a vlaue range from 0 to 100")
+        elif not isinstance(status, int) or status not in range(0, 7):
+            raise ValueError("Parameter status needs to be of type int with a vlaue range from 0 to 7")
+        elif target_voltage is not None and (not isinstance(target_voltage, list) or len(target_voltage) != 3):
+            raise ValueError("Parameter target_voltage needs to be of type list with length 3")
+        elif target_current is not None and (not isinstance(target_current, list) or len(target_current) != 3):
+            raise ValueError("Parameter target_current needs to be of type list with length 3")
+        elif not isinstance(full_soc, int) or full_soc not in range(0, 7):
+            raise ValueError("Parameter full_soc needs to be of type int with a vlaue range from 0 to 7")
+        elif not isinstance(bulk_soc, int) or bulk_soc not in range(0, 7):
+            raise ValueError("Parameter bulk_soc needs to be of type int with a vlaue range from 0 to 7")
+        elif energy_request is not None and (not isinstance(energy_request, list) or len(energy_request) != 3):
+            raise ValueError("Parameter energy_request needs to be of type list with length 3")
+        elif not isinstance(departure_time, int) or departure_time not in range(0, 7):
+            raise ValueError("Parameter departure_time needs to be of type int with a vlaue range from 0 to 7")
+        else:
+            payload = b""
+            for e in min_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in min_current:
+                payload += e.to_bytes(1, "big")
+            for e in min_power:
+                payload += e.to_bytes(1, "big")
+            for e in max_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in max_current:
+                payload += e.to_bytes(1, "big")
+            for e in max_power:
+                payload += e.to_bytes(1, "big")
+            payload += soc.to_bytes(1, "big")
+            payload += status.to_bytes(1, "big")
+            for e in target_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in target_current:
+                payload += e.to_bytes(1, "big")
+            payload += full_soc.to_bytes(1, "big")
+            payload += bulk_soc.to_bytes(1, "big")
+            payload += energy_request.to_bytes(1, "big")
+            payload += departure_time.to_bytes(4, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_dc_charging_parameters, payload)
+
+    def v2gUpdateDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current):
+        """
+        Updates the DC charging parameters of the EV
+        """
+        if min_voltage is not None and (not isinstance(min_voltage, list) or len(min_voltage) != 3):
+            raise ValueError("Parameter min_voltage needs to be of type list with length 3")
+        elif min_current is not None and (not isinstance(min_current, list) or len(min_current) != 3):
+            raise ValueError("Parameter min_current needs to be of type list with length 3")
+        elif min_power is not None and (not isinstance(min_power, list) or len(min_power) != 3):
+            raise ValueError("Parameter min_power needs to be of type list with length 3")
+        elif max_voltage is not None and (not isinstance(max_voltage, list) or len(max_voltage) != 3):
+            raise ValueError("Parameter max_voltage needs to be of type list with length 3")
+        elif max_current is not None and (not isinstance(max_current, list) or len(max_current) != 3):
+            raise ValueError("Parameter max_current needs to be of type list with length 3")
+        elif max_power is not None and (not isinstance(max_power, list) or len(max_power) != 3):
+            raise ValueError("Parameter max_power needs to be of type list with length 3")
+        elif not isinstance(soc, int) or soc not in range(0, 100):
+            raise ValueError("Parameter soc needs to be of type int with a vlaue range from 0 to 100")
+        elif not isinstance(status, int) or status not in range(0, 7):
+            raise ValueError("Parameter status needs to be of type int with a vlaue range from 0 to 7")
+        elif target_voltage is not None and (not isinstance(target_voltage, list) or len(target_voltage) != 3):
+            raise ValueError("Parameter target_voltage needs to be of type list with length 3")
+        elif target_current is not None and (not isinstance(target_current, list) or len(target_current) != 3):
+            raise ValueError("Parameter target_current needs to be of type list with length 3")
+        else:
+            payload = b""
+
+            for e in min_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in min_current:
+                payload += e.to_bytes(1, "big")
+            for e in min_power:
+                payload += e.to_bytes(1, "big")
+            for e in max_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in max_current:
+                payload += e.to_bytes(1, "big")
+            for e in max_power:
+                payload += e.to_bytes(1, "big")
+            payload += soc.to_bytes(1, "big")
+            payload += status.to_bytes(1, "big")
+            for e in target_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in target_current:
+                payload += e.to_bytes(1, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
+
+    def v2gDCChargingParameters(self, data):
+        """
+        Gets the DC charging parameters
+        Returns dictionary
+        """
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_dc_charging_parameters, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        self.payloadReaderReadInt(1)
+        ret["min_voltage"] = self.payloadReaderReadBytes(3)
+        ret["min_current"] = self.payloadReaderReadBytes(3)
+        ret["min_power"] = self.payloadReaderReadBytes(3)
+        ret["max_voltage"] = self.payloadReaderReadBytes(3)
+        ret["max_current"] = self.payloadReaderReadBytes(3)
+        ret["max_power"] = self.payloadReaderReadBytes(3)
+        ret["soc"] = self.payloadReaderReadInt(1)
+        ret["status"] = self.payloadReaderReadInt(1)
+        ret["full_soc"] = self.payloadReaderReadInt(1)
+        ret["bulk_soc"] = self.payloadReaderReadInt(1)
+        ret["energy_request"] = self.payloadReaderReadBytes(3)
+        ret["departure_time"] = self.payloadReaderReadInt(4)
+        self.payloadReaderFinalize()
+        return ret
+
+    def v2SetACChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, energy_request, departure_time):
+        """
+        Sets the AC charging parameters of the EV
+        """
+        if min_voltage is not None and (not isinstance(min_voltage, list) or len(min_voltage) != 3):
+            raise ValueError("Parameter min_voltage needs to be of type list with length 3")
+        elif min_current is not None and (not isinstance(min_current, list) or len(min_current) != 3):
+            raise ValueError("Parameter min_current needs to be of type list with length 3")
+        elif min_power is not None and (not isinstance(min_power, list) or len(min_power) != 3):
+            raise ValueError("Parameter min_power needs to be of type list with length 3")
+        elif max_voltage is not None and (not isinstance(max_voltage, list) or len(max_voltage) != 3):
+            raise ValueError("Parameter max_voltage needs to be of type list with length 3")
+        elif max_current is not None and (not isinstance(max_current, list) or len(max_current) != 3):
+            raise ValueError("Parameter max_current needs to be of type list with length 3")
+        elif max_power is not None and (not isinstance(max_power, list) or len(max_power) != 3):
+            raise ValueError("Parameter max_power needs to be of type list with length 3")
+        elif energy_request is not None and (not isinstance(energy_request, list) or len(energy_request) != 3):
+            raise ValueError("Parameter energy_request needs to be of type list with length 3")
+        elif not isinstance(departure_time, int) or departure_time not in range(0, 7):
+            raise ValueError("Parameter departure_time needs to be of type int with a vlaue range from 0 to 7")
+        else:
+            payload = b""
+            for e in min_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in min_current:
+                payload += e.to_bytes(1, "big")
+            for e in min_power:
+                payload += e.to_bytes(1, "big")
+            for e in max_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in max_current:
+                payload += e.to_bytes(1, "big")
+            for e in max_power:
+                payload += e.to_bytes(1, "big")
+            payload += energy_request.to_bytes(1, "big")
+            payload += departure_time.to_bytes(4, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_dc_charging_parameters, payload)
+
+    def v2gUpdateACChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power):
+        """
+        Updates the AC charging parameters of the EV
+        """
+        if min_voltage is not None and (not isinstance(min_voltage, list) or len(min_voltage) != 3):
+            raise ValueError("Parameter min_voltage needs to be of type list with length 3")
+        elif min_current is not None and (not isinstance(min_current, list) or len(min_current) != 3):
+            raise ValueError("Parameter min_current needs to be of type list with length 3")
+        elif min_power is not None and (not isinstance(min_power, list) or len(min_power) != 3):
+            raise ValueError("Parameter min_power needs to be of type list with length 3")
+        elif max_voltage is not None and (not isinstance(max_voltage, list) or len(max_voltage) != 3):
+            raise ValueError("Parameter max_voltage needs to be of type list with length 3")
+        elif max_current is not None and (not isinstance(max_current, list) or len(max_current) != 3):
+            raise ValueError("Parameter max_current needs to be of type list with length 3")
+        elif max_power is not None and (not isinstance(max_power, list) or len(max_power) != 3):
+            raise ValueError("Parameter max_power needs to be of type list with length 3")
+        else:
+            payload = b""
+            for e in min_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in min_current:
+                payload += e.to_bytes(1, "big")
+            for e in min_power:
+                payload += e.to_bytes(1, "big")
+            for e in max_voltage:
+                payload += e.to_bytes(1, "big")
+            for e in max_current:
+                payload += e.to_bytes(1, "big")
+            for e in max_power:
+                payload += e.to_bytes(1, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
+
+    def v2gACChargingParameters(self, data):
+        """
+        Gets the AC charging parameters
+        Returns dictionary
+        """
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_dc_charging_parameters, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        self.payloadReaderReadInt(1)
+        ret["min_voltage"] = self.payloadReaderReadBytes(3)
+        ret["min_current"] = self.payloadReaderReadBytes(3)
+        ret["min_power"] = self.payloadReaderReadBytes(3)
+        ret["max_voltage"] = self.payloadReaderReadBytes(3)
+        ret["max_current"] = self.payloadReaderReadBytes(3)
+        ret["max_power"] = self.payloadReaderReadBytes(3)
+        ret["energy_request"] = self.payloadReaderReadBytes(3)
+        ret["departure_time"] = self.payloadReaderReadInt(4)
+        self.payloadReaderFinalize()
+        return ret
+
+    def v2gSetchargingProfile(self, schedule_tuple_id, charging_profile_entries_count, start, interval, power):
+        """
+        Sets the charging profile
+        """
+        if not isinstance(schedule_tuple_id, int) or schedule_tuple_id not in range(2**16):
+            raise ValueError("Parameter schedule_tuple_id needs to be of type int with range 0 - 65536")
+        if not isinstance(charging_profile_entries_count, int) or charging_profile_entries_count not in range(1, 24):
+            raise ValueError("Parameter chargin_profile_entries_count needs to be of type int with range 1 - 24")
+        if not isinstance(start, int) or start not in range(2**32):
+            raise ValueError("Parameter start needs to be of type int with range 0 - 429467296")
+        if not isinstance(interval, int) or interval not in range(2**32):
+            raise ValueError("Parameter interval needs to be of type int with range 0 - 429467296")
+        elif power is not None and (not isinstance(power, list) or len(power) != 3):
+            raise ValueError("Parameter power needs to be of type list with length 3")
+        else:
+            payload = b""
+            payload += schedule_tuple_id.to_bytes(2, "big")
+            payload += charging_profile_entries_count.to_bytes(1, "big")
+            payload += start.to_bytes(4, "big")
+            payload += start.to_bytes(4, "big")
+            for e in power:
+                payload += e.to_bytes(1, "big")
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charging_profile, payload)
+
+    def v2gStartSession(self):
+        """
+        Starts a new charging session
+        """        
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_sessoin, None)
+
+    def v2gStartCableCheck(self):
+        """
+        Starts the cable check after notification Cable Check Ready has been reveived
+        """
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_cable_check, None)
+
+    def v2gStartPreCharging(self):
+        """
+        Starts the pre charging after notification Pre Charging Ready has been reveived
+        """
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_pre_charging, None)
+
+    def v2gStartCharging(self):
+        """
+        Starts the  charging after notification Charging Ready has been reveived
+        """
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_charging, None)
+
+    def v2gStopCharging(self, renegotiation):
+        """
+        Stops the charging
+        """
+        if not isinstance(renegotiation, bool):
+            raise ValueError("Parameter renegotiation has to be of type bool")
+        else:
+            payload = b""
+            payload += renegotiation.to_bytes(1, "big")
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, payload)
+
+    def v2gStopSession(self):
+        """
+        Stops the currently active charging session after the notification Post Charging Ready has been received.
+        When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
+        """
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, None)
+            
+            
+    # EV
 
     def v2gSetSupportedProtocols(self, prot_list):
         """
