@@ -471,7 +471,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return ret
 
-    def v2SetDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current, full_suc, bulk_soc, energy_request, departure_time):
+    def v2SetDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current, full_soc, bulk_soc, energy_request, departure_time):
         """
         Sets the DC charging parameters of the EV
         """
@@ -690,7 +690,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return ret
 
-    def v2gSetchargingProfile(self, schedule_tuple_id, charging_profile_entries_count, start, interval, power):
+    def v2gSetChargingProfile(self, schedule_tuple_id, charging_profile_entries_count, start, interval, power):
         """
         Sets the charging profile
         """
@@ -698,20 +698,24 @@ class Whitebeet():
             raise ValueError("Parameter schedule_tuple_id needs to be of type int with range 0 - 65536")
         if not isinstance(charging_profile_entries_count, int) or charging_profile_entries_count not in range(1, 24):
             raise ValueError("Parameter chargin_profile_entries_count needs to be of type int with range 1 - 24")
-        if not isinstance(start, int) or start not in range(2**32):
-            raise ValueError("Parameter start needs to be of type int with range 0 - 429467296")
-        if not isinstance(interval, int) or interval not in range(2**32):
-            raise ValueError("Parameter interval needs to be of type int with range 0 - 429467296")
-        elif power is not None and (not isinstance(power, list) or len(power) != 3):
-            raise ValueError("Parameter power needs to be of type list with length 3")
+        if start is not None and (not isinstance(start, list)):
+            raise ValueError("Parameter start needs to be of type list")
+        if interval is not None and (not isinstance(interval, list)):
+            raise ValueError("Parameter interval needs to be of type list")
+        elif power is not None and (not isinstance(power, list)):
+            raise ValueError("Parameter power needs to be of type list")
         else:
             payload = b""
             payload += schedule_tuple_id.to_bytes(2, "big")
             payload += charging_profile_entries_count.to_bytes(1, "big")
-            payload += start.to_bytes(4, "big")
-            payload += start.to_bytes(4, "big")
+            for e in start:
+                payload += int(start).to_bytes(4, "big")
+            for e in interval:
+                payload += int(interval).to_bytes(4, "big")
             for e in power:
-                payload += e.to_bytes(1, "big")
+                payload += int(e[0]).to_bytes(1, "big")
+                payload += int(e[1]).to_bytes(1, "big")
+                payload += int(e[2]).to_bytes(1, "big")
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charging_profile, payload)
 
     def v2gStartSession(self):
@@ -756,7 +760,198 @@ class Whitebeet():
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, None)
             
-            
+    
+    def v2gEvParseSessionStarted(self, data):
+        """
+        Parse a session started message.
+        Will return a dictionary with the following keys:
+        keys protocol           int
+        session_id              bytes
+        evse_id                 bytes
+        payment_method          int
+        energy_transfer_method  int
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['protocol'] = self.payloadReaderReadInt(1)
+        message['session_id'] = self.payloadReaderReadBytes(8)
+        message['evse_id'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+        message['payment_method'] = self.payloadReaderReadInt(8)
+        message['energy_transfer_method'] = self.payloadReaderReadInt(8)
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseDCChargeParametersChanged(self, data):
+        """
+        Parse a DC charge parameters changed message.
+        Will return a dictionary with the following keys:
+        keys evse_min_voltage   int or float
+        evse_min_current        int or float
+        evse_min_power          int or float
+        evse_max_voltage        int or float
+        evse_max_current        int or float
+        evse_max_power          int or float
+        evse_present_voltage    int or float
+        evse_present_current    int or float
+        evse_status             int
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['evse_min_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_min_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_min_power'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_max_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_max_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_max_power'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_present_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_present_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['evse_status'] = self.payloadReaderReadInt(1)
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseACChargeParametersChanged(self, data):
+        """
+        Parse a AC charge parameters changed message.
+        Will return a dictionary with the following keys:
+        keys nominal_voltage    int or float
+        max_current             int or float
+        rcd                     boolean
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['nominal_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['max_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+        message['rcd'] = True if self.payloadReaderReadInt(1) == 1 else False
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseScheduleReceived(self, data):
+        """
+        Parse a schedule received message.
+        Will return a dictionary with the following keys:
+        keys tuple_count    int
+        tuple_id            int
+        entries_count       int
+        entries             list of dict
+
+        The list elements of entries have the following keys:
+
+        start               int
+        interval            int
+        power               int or float
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['tuple_count'] = self.payloadReaderReadInt(1)
+        message['tuple_id'] = self.payloadReaderReadInt(2)
+        message['entries_count'] = self.payloadReaderReadInt(2)
+        message['entries'] = []
+        for i in range(message["entries_count"]):
+            start = self.payloadReaderReadInt(4)
+            interval = self.payloadReaderReadInt(4)
+            power = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+            message['entries'].append({'start': start,'interval': interval,'power': power})
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseCableCheckReady(self, data):
+        """
+        Parse a cable check ready message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseCableCheckFinished(self, data):
+        """
+        Parse a cable check finished message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParsePreChargingReady(self, data):
+        """
+        Parse a pre charging ready message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseChargingReady(self, data):
+        """
+        Parse a charging ready message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseChargingStarted(self, data):
+        """
+        Parse a charging started message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseChargingStopped(self, data):
+        """
+        Parse a charging stopped message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParsePostChargingReady(self, data):
+        """
+        Parse a post charging method ready message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseSessionStopped(self, data):
+        """
+        Parse a session stopped message.
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseNotificationReceived(self, data):
+        """
+        Parse a notification received message.
+        Will return a dictionary with the following keys:
+        keys type   int
+        max_delay   int
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['type'] = self.payloadReaderReadInt(1)
+        message['max_delay'] = self.payloadReaderReadInt(2)
+        self.payloadReaderFinalize()
+        return message
+    
+    def v2gEvParseSessionError(self, data):
+        """
+        Parse a session error message.
+        Will return a dictionary with the following keys:
+        keys code    int
+        """
+        message = {}        
+        self.payloadReaderInitialize(data, len(data))
+        message['code'] = self.payloadReaderReadInt(1)
+        self.payloadReaderFinalize()
+        return message
+
     # EV
 
     def v2gSetSupportedProtocols(self, prot_list):
@@ -1313,7 +1508,7 @@ class Whitebeet():
                         payload += present_voltage[1].to_bytes(1, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_post_charge_params, payload)
 
-    def v2gParseSessionStarted(self, data):
+    def v2gEvseParseSessionStarted(self, data):
         """
         Parse a session started message.
         Will return a dictionary with the following keys:
@@ -1329,7 +1524,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseSessionStopped(self, data):
+    def v2gEvseParseSessionStopped(self, data):
         """
         Parse a session stopped message.
         Will return an empty dictionary.
@@ -1339,7 +1534,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestEvseId(self, data):
+    def v2gEvseParseRequestEvseId(self, data):
         """
         Parse a session stopped message.
         Will return a dictionary with the following keys:
@@ -1353,7 +1548,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestAuthorization(self, data):
+    def v2gEvseParseRequestAuthorization(self, data):
         """
         Parse a session stopped message.
         Will return a dictionary with the following keys:
@@ -1365,7 +1560,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestDiscoveryChargeParameters(self, data):
+    def v2gEvseParseRequestDiscoveryChargeParameters(self, data):
         """
         Parse a request discovery charge parameters message.
         Will return a dictionary with the following keys:
@@ -1423,7 +1618,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestSchedules(self, data):
+    def v2gEvseParseRequestSchedules(self, data):
         """
         Parse a request schedules message.
         Will return a dictionary with the following keys:
@@ -1439,7 +1634,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestCableCheckStatus(self, data):
+    def v2gEvseParseRequestCableCheckStatus(self, data):
         """
         Parse a request cable check status message.
         Will return a dictionary with the following keys:
@@ -1451,7 +1646,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestCableCheckParameters(self, data):
+    def v2gEvseParseRequestCableCheckParameters(self, data):
         """
         Parse a request cable check parameters message.
         Will return a dictionary with the following keys:
@@ -1472,7 +1667,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestPreChargeParameters(self, data):
+    def v2gEvseParseRequestPreChargeParameters(self, data):
         """
         Parse a request pre charge parameters message.
         Will return a dictionary with the following keys:
@@ -1497,7 +1692,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestStartCharging(self, data):
+    def v2gEvseParseRequestStartCharging(self, data):
         """
         Parse a request start charging message.
         Will return a dictionary with the following keys:
@@ -1539,7 +1734,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestChargeLoopParameters(self, data):
+    def v2gEvseParseRequestChargeLoopParameters(self, data):
         """
         Parse a request charge loop parameters message.
         Will return a dictionary with the following keys:
@@ -1592,7 +1787,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestStopCharging(self, data):
+    def v2gEvseParseRequestStopCharging(self, data):
         """
         Parse a request stop charging message.
         Will return a dictionary with the following keys:
@@ -1622,7 +1817,7 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gParseRequestPostChargeParameters(self, data):
+    def v2gEvseParseRequestPostChargeParameters(self, data):
         """
         Parse a request post charge parameters message.
         Will return a dictionary with the following keys:
