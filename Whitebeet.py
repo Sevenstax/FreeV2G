@@ -658,7 +658,7 @@ class Whitebeet():
                         payload += b"\x00"
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_discovery_charge_params, payload)
 
-    def v2gSetSchedules(self, code, time_anchor, schedule):
+    def v2gSetSchedules(self, code, schedule):
         """
         Sets the discovery charge parameters.
         If code is set to 1, all other parameters can be set to None
@@ -668,51 +668,38 @@ class Whitebeet():
             raise ValueError("Parameter code needs to be of type int")
         elif code not in codes_allowed:
             raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
+        elif isinstance(schedule, list) == False:
+            raise ValueError("Parameter schedule needs to be of type list")
         else:
+            # Check for correct schedule format
+            for schedule_tuple in schedule:
+                if "id" not in schedule_tuple:
+                    raise ValueError("Schedule tuple needs to have key 'id'")
+                if "tuple" not in schedule_tuple:
+                    raise ValueError("Schedule tuple needs to have key 'tuple'")
+                for entry in schedule_tuple["tuple"]:
+                    if "start" not in entry:
+                        raise ValueError("Schedule tuple entry needs to have key 'start'")
+                    if "interval" not in entry:
+                        raise ValueError("Schedule tuple entry needs to have key 'interval'")
+                    if "max_power" not in entry:
+                        raise ValueError("Schedule tuple entry needs to have key 'max_power'")
+            # Prepare the schedule message
             payload = code.to_bytes(1, "big")
             if code == 0:
-                if isinstance(time_anchor, int) == False:
-                    raise ValueError("Parameter time anchor needs to be of type int")
-                elif isinstance(schedule, list) == False:
-                    raise ValueError("Parameter schedule needs to be of type list")
-                elif len(schedule) == 0:
-                    raise ValueError("Parameter schedule needs to have at least one entry")
-                elif any(isinstance(entry, tuple) == False for entry in schedule):
-                    raise ValueError("Entries in parameter schedule need to be of type tuple")
-                elif any(len(entry) != 3 for entry in schedule):
-                    raise ValueError("Tuple entries in parameter schedule need to have 3 entries (ID, Interval, Power)")
-                else:
-                    payload += time_anchor.to_bytes(8, "big")
-                    payload += len(schedule).to_bytes(2, "big")
-                    id_list = []
-                    interval_sum = 0
-                    for entry in schedule:
-                        if isinstance(entry, tuple) == False:
-                            raise ValueError("Entries in parameter schedule need to be of type tuple")
-                        elif len(entry) != 3:
-                            raise ValueError("Tuple entries in parameter schedule need to have 3 entries (ID, Interval, Power)")
-                        elif isinstance(entry[0], int) == False:
-                            raise ValueError("First element in entry of parameter schedule needs to be of type int")
-                        elif isinstance(entry[1], int) == False:
-                            raise ValueError("Second element in entry of parameter schedule needs to be of type int")
-                        elif not isinstance(entry[2], int) and not (isinstance(entry[2], tuple) and len(entry[2]) == 2):
-                            raise ValueError("Third element in entry of parameter schedule needs to be of type int or tuple with length 2")
+                payload += len(schedule).to_bytes(1, "big")
+                for schedule_tuple in schedule:
+                    payload += schedule_tuple["id"].to_bytes(2, "big")
+                    payload += len(schedule_tuple["tuple"]).to_bytes(2, "big")
+                    for entry in schedule_tuple["tuple"]:
+                        payload += entry["start"].to_bytes(4, "big")
+                        payload += entry["interval"].to_bytes(4, "big")
+                        if isinstance(entry["max_power"], int):
+                            payload += entry["max_power"].to_bytes(2, "big")
+                            payload += b"\x00"
                         else:
-                            if entry[0] in id_list:
-                                raise ValueError("Multiple occurances of ID {} in Schedule entries".format(entry[0]))
-                            else:
-                                payload += entry[0].to_bytes(2, "big")
-                                id_list.append(entry[0])
-                            payload += entry[1].to_bytes(2, "big")
-                            interval_sum += entry[1]
-                            if isinstance(entry[2], int):
-                                payload += entry[2].to_bytes(2, "big")
-                                payload += b"\x00"
-                            else:
-                                payload += entry[2][0].to_bytes(2, "big")
-                                payload += entry[2][1].to_bytes(1, "big")
-                    if interval_sum < 60 * 60 * 24:
-                        raise ValueError("The intervals given ({}s) in the schedule entries need to have a sum of 24h".format(interval_sum))
+                            payload += entry["max_power"][0].to_bytes(2, "big")
+                            payload += entry["max_power"][1].to_bytes(1, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_schedules, payload)
 
     def v2gSetDcCableCheckStatus(self, status):
@@ -1056,7 +1043,6 @@ class Whitebeet():
         self.payloadReaderInitialize(data, len(data))
         message['timeout'] = self.payloadReaderReadInt(4)
         message['max_entries'] = self.payloadReaderReadInt(2)
-        message['timestamp'] = self.payloadReaderReadInt(8)
         self.payloadReaderFinalize()
         return message
 
@@ -1141,13 +1127,12 @@ class Whitebeet():
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['timeout'] = self.payloadReaderReadInt(4)
-        message['schedule_id'] = self.payloadReaderReadInt(1)
-        message['time_anchor'] = self.payloadReaderReadInt(8)
+        message['schedule_id'] = self.payloadReaderReadInt(2)
         message['ev_power_profile'] = []
-        for i in range(self.payloadReaderReadInt(2)):
-            interval = self.payloadReaderReadInt(4)
+        for i in range(self.payloadReaderReadInt(1)):
+            start = self.payloadReaderReadInt(4)
             power = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['ev_power_profile'].append((interval, power))
+            message['ev_power_profile'].append((start, power))
         message['type'] = self.payloadReaderReadInt(1)
         if message['type'] == 0:
             message['dc'] = {}
@@ -1230,7 +1215,6 @@ class Whitebeet():
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['timeout'] = self.payloadReaderReadInt(4)
-        message['schedule_id'] = self.payloadReaderReadInt(1)
         message['type'] = self.payloadReaderReadInt(1)
         if message['type'] == 0:
             message['dc'] = {}
