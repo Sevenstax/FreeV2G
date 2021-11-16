@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
             # Start the EVSE loop
             #ev.whitebeet.networkConfigSetPortMirrorState(1)
-            #exit(0)
+            #ev.whitebeet.v2gSetConfiguration(ev.evid, ev.protocol_count, ev.protocols, ev.payment_method_count, ev.payment_method, ev.energy_transfer_mode_count, ev.energy_transfer_mode, ev.battery_capacity)
             ev.loop()
             print("EV loop finished")
     else:
