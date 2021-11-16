@@ -2083,5 +2083,4 @@ class Whitebeet():
         sub_id_list.append(0xCC)
         sub_id_list.append(0xCD)
         response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 30)
-        print(response)
         return response.sub_id, response.payload
