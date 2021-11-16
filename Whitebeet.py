@@ -9,12 +9,17 @@ class Whitebeet():
         self.payloadBytesRead = 0
         self.payloadBytesLen = 0
 
+        # Network configuration IDs
+        self.netconf_sub_id = 0x05
+        self.netconf_set_port_mirror_state = 0x55
+
         # SLAC module IDs
         self.slac_mod_id = 0x28
         self.slac_sub_start = 0x42
         self.slac_sub_stop = 0x43
         self.slac_sub_match = 0x44
-        self.slac_sub_start_match = 0x44
+        #self.slac_sub_start_match = 0x44
+        self.slac_sub_set_validation_configuration = 0x4B
         self.slac_sub_join = 0x4D
         self.slac_sub_success = 0x80
         self.slac_sub_failed = 0x81
@@ -28,6 +33,8 @@ class Whitebeet():
         self.cp_sub_stop = 0x43
         self.cp_sub_set_dc = 0x44
         self.cp_sub_get_dc = 0x45
+        self.cp_sub_set_res = 0x46
+        self.cp_sub_get_res = 0x47
         self.cp_sub_get_state = 0x48
         self.cp_sub_nc_state = 0x81
 
@@ -229,6 +236,12 @@ class Whitebeet():
         else:
             self._sendReceiveAck(self.cp_mod_id, self.cp_sub_set_mode, mode.to_bytes(1, "big"))
 
+    def networkConfigSetPortMirrorState(self, value):
+        if not isinstance(value, int) or value not in [0,1]:
+            raise ValueError("Value needs to be of type int with value 0 or 1")
+        else:
+            self._sendReceiveAck(self.netconf_sub_id, self.netconf_set_port_mirror_state, value.to_bytes(1, "big"))
+
     def controlPilotGetMode(self):
         """
         Sets the mode of the control pilot service.
@@ -281,6 +294,33 @@ class Whitebeet():
             else:
                 return duty_cycle
 
+    def controlPilotGetResistorValue(self):
+        """
+        Returns the state of the resistor value
+        """
+        response = self._sendReceiveAck(self.cp_mod_id, self.cp_sub_get_res, None)
+        if response.payload_len != 1:
+            raise Warning("Module returned malformed message with length {}".format(response.payload_len))
+        elif response.payload[0] not in range(0, 5):
+            raise Warning("Module returned invalid state {}".format(response.payload[1]))
+        else:
+            return response.payload[0]
+
+    def controlPilotSetResistorValue(self, value):
+        """
+        Returns the state of the resistor value
+        """
+        if not isinstance(value, int) or value not in range(0, 2):
+            print("Resistor value needs to be of type int with range 0..2")
+            return None
+        response = self._sendReceiveAck(self.cp_mod_id, self.cp_sub_set_res, value.to_bytes(1, "big"))
+        if response.payload_len != 1:
+            raise Warning("Module returned malformed message with length {}".format(response.payload_len))
+        elif response.payload[0] not in range(0, 5):
+            raise Warning("Module returned invalid state {}".format(response.payload[1]))
+        else:
+            return response.payload[0]
+
     def controlPilotGetState(self):
         """
         Returns the state on the CP
@@ -303,7 +343,7 @@ class Whitebeet():
         elif mode_in not in [0, 1]:
             raise ValueError("Mode parameter needs to be 0 (EV) or 1 (EVSE)")
         else:
-             self._sendReceiveAck(self.slac_mod_id, self.slac_sub_start, mode_in.to_bytes(1, "big"))
+            self._sendReceiveAck(self.slac_mod_id, self.slac_sub_start, mode_in.to_bytes(1, "big"))
 
     def slacStop(self):
         """
@@ -363,6 +403,16 @@ class Whitebeet():
         else:
             return True
 
+    def slacSetValidationConfiguration(self, configuration):
+        """
+        Enables or disables validation
+        """
+        if not isinstance(configuration, int) or configuration not in [0,1]:
+            print("Parameter configuration needs to be of type int with value 0 or 1")
+        else:
+            self._sendReceiveAck(self.slac_mod_id, self.slac_sub_set_validation_configuration, configuration.to_bytes(1, "big"))
+
+
     def v2gSetMode(self, mode):
         """
         Sets the mode of the V2G service.
@@ -401,7 +451,7 @@ class Whitebeet():
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop, None)
 
     # EV 
-    def v2gSetConfigruation(self, evid, protocol_count, protocol, payment_method_count, payment_method, energy_transfer_mode_count, energy_transfer_mode, battery_capacity):
+    def v2gSetConfiguration(self, evid, protocol_count, protocol, payment_method_count, payment_method, energy_transfer_mode_count, energy_transfer_mode, battery_capacity):
         """
         Sets the configuration for EV mode
         """
@@ -412,10 +462,10 @@ class Whitebeet():
             raise ValueError("protocol_count needs to be of type int with value 1 or 2")
         elif protocol is not None and (not isinstance(protocol, list) or len(protocol) != protocol_count):
             raise ValueError("protocol needs to be of type int with value 0 or 1")
-        elif not isinstance(payment_method_count, int) or payment_method_count != 0:
-            raise ValueError("payment_method_count needs to be of type int with value 1")
-        elif not isinstance(payment_method, int) or payment_method != 0:
-            raise ValueError("payment_method needs to be of type int with value 0")
+        elif not isinstance(payment_method_count, int):
+            raise ValueError("payment_method_count needs to be of type int")
+        elif not isinstance(payment_method, list):
+            raise ValueError("payment_method needs to be of type list")
         elif not isinstance(energy_transfer_mode_count, int) or not (1 <= energy_transfer_mode_count <= 6):
             raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
         elif energy_transfer_mode is not None and (not isinstance(energy_transfer_mode, list) or len(energy_transfer_mode) != energy_transfer_mode_count):
@@ -430,6 +480,9 @@ class Whitebeet():
             payload += b"\0x00"
             if protocol_count == 2:
                 payload += b"\0x01"
+            payload += payment_method_count.to_bytes(1, "big")
+            for method in payment_method:
+                payload += method.to_bytes(1, "big")
             payload += energy_transfer_mode_count.to_bytes(1, "big")
             for mode in energy_transfer_mode:
                 if mode not in range(0, 5):
@@ -759,7 +812,6 @@ class Whitebeet():
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, None)
-            
     
     def v2gEvParseSessionStarted(self, data):
         """
