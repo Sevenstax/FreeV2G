@@ -8,7 +8,11 @@ class Ev():
 
     def __init__(self, iface, mac):
         self.whitebeet = Whitebeet(iface, mac)
+
         self.battery = Battery()
+        self.battery.setCapacity(50000)
+        self.battery.setBatteryLevel(50000 * 0.5)
+
 
         self.evid = list(bytes.fromhex(mac.replace(":","")))
         self.protocol_count = 2
@@ -26,7 +30,7 @@ class Ev():
         self.max_voltage = 70
         self.max_current = 100
         self.max_power = self.max_voltage * self.max_current
-        self.soc = self.battery.getBatteryLevel()
+        self.soc = int((self.battery.getBatteryLevel() / self.battery.getCapacity()) * 100.0)
         self.status = 0
         self.target_voltage = 60
         self.target_current = 80
@@ -132,12 +136,12 @@ class Ev():
         self.whitebeet.v2gStartSession()
 
         oldVal = self.whitebeet.controlPilotGetDutyCycle()
-        print("controlpilot dutycycle: " + str(oldVal))
+        print("ControlPilot duty cycle: " + str(oldVal))
         while True:
             newVal = self.whitebeet.controlPilotGetDutyCycle()
             if newVal != oldVal:
                 oldVal = newVal
-                print("controlpilot dutycycle: " + str(oldVal))
+                print("ControlPilot duty cycle: " + str(oldVal))
             id, data = self.whitebeet.v2gEvReceiveRequest()
             if id == 0xC0:
                 self._handleSessionStarted(data)
@@ -163,6 +167,7 @@ class Ev():
                 self._handlePostChargingReady(data)
             elif id == 0xCB:
                 self._handleSessionStopped(data)
+                break
             elif id == 0xCC:
                 self._handleNotificationReceived(data)
             elif id == 0xCD:
@@ -170,6 +175,7 @@ class Ev():
             else:
                 print("Message ID not supported: {:02x}".format(id))
                 break
+            self.battery.tickSimulation()
         self.whitebeet.controlPilotSetResistorValue(1)
         self.whitebeet.v2gStop()
 
@@ -179,11 +185,11 @@ class Ev():
         """
         print("\"Session started\" received")
         message = self.whitebeet.v2gEvParseSessionStarted(data)
-        print("Protocol: {}".format(message['protocol']))
-        print("Session ID: {}".format(message['session_id'].hex()))
-        print("EVSE ID: {}".format(message['evse_id'].hex()))
-        print("Payment method: {}".format(message['payment_method']))
-        print("Energy transfer mode: {}".format(message['energy_transfer_method']))
+        print("\tProtocol: {}".format(message['protocol']))
+        print("\tSession ID: {}".format(message['session_id'].hex()))
+        print("\tEVSE ID: {}".format(message['evse_id'].hex()))
+        print("\tPayment method: {}".format(message['payment_method']))
+        print("\tEnergy transfer mode: {}".format(message['energy_transfer_method']))
 
     def _handleDCChargeParametersChanged(self, data):
         """
@@ -191,15 +197,21 @@ class Ev():
         """
         print("\"DC Charge Parameters Changed\" received")
         message = self.whitebeet.v2gEvParseDCChargeParametersChanged(data)
-        print("EVSE min voltage: {}".format(message['evse_min_voltage']))
-        print("EVSE min current: {}".format(message['evse_min_current']))
-        print("EVSE min power: {}".format(message['evse_min_power']))
-        print("EVSE max voltage: {}".format(message['evse_max_voltage']))
-        print("EVSE max current: {}".format(message['evse_max_current']))
-        print("EVSE max power: {}".format(message['evse_max_power']))
-        print("EVSE present voltage: {}".format(message['evse_present_voltage']))
-        print("EVSE present current: {}".format(message['evse_present_current']))
-        print("EVSE status: {}".format(message['evse_status']))
+        print("\tEVSE min voltage: {}".format(message['evse_min_voltage']))
+        print("\tEVSE min current: {}".format(message['evse_min_current']))
+        print("\tEVSE min power: {}".format(message['evse_min_power']))
+        print("\tEVSE max voltage: {}".format(message['evse_max_voltage']))
+        print("\tEVSE max current: {}".format(message['evse_max_current']))
+        print("\tEVSE max power: {}".format(message['evse_max_power']))
+        print("\tEVSE present voltage: {}".format(message['evse_present_voltage']))
+        print("\tEVSE present current: {}".format(message['evse_present_current']))
+        print("\tEVSE status: {}".format(message['evse_status']))
+        
+        if message["evse_status"] != 0:
+            self.battery.setCharging(False)
+        
+        self.battery.setReportedVoltageLevel(message["evse_present_voltage"])
+        self.battery.setReportedCurrentLevel(message["evse_present_current"])
 
     def _handleACChargeParametersChanged(self, data):
         """
@@ -207,9 +219,9 @@ class Ev():
         """
         print("\"AC Charge Parameter changed\" received")
         message = self.whitebeet.v2gEvParseACChargeParametersChanged(data)
-        print("Nominal voltage: {}".format(message['nominal_voltage']))
-        print("Maximal current: {}".format(message['max_current']))
-        print("RCD: {}".format(message['rcd']))
+        print("\tNominal voltage: {}".format(message['nominal_voltage']))
+        print("\tMaximal current: {}".format(message['max_current']))
+        print("\tRCD: {}".format(message['rcd']))
 
     def _handleScheduleReceived(self, data):
         """
@@ -217,9 +229,9 @@ class Ev():
         """
         print("\"Schedule Received\" received")
         message = self.whitebeet.v2gEvParseScheduleReceived(data)
-        print("Tuple count: {}".format(message['tuple_count']))
-        print("Tuple id: {}".format(message['tuple_id']))
-        print("Entries count: {}".format(message['entries_count']))
+        print("\tTuple count: {}".format(message['tuple_count']))
+        print("\tTuple id: {}".format(message['tuple_id']))
+        print("\tEntries count: {}".format(message['entries_count']))
         start = []
         interval = []
         power = []
@@ -295,25 +307,13 @@ class Ev():
         print("\"Charging Started\" received")
         self.whitebeet.v2gEvParseChargingStarted(data)
         self.battery.setCharging(True)
-        '''try:
-            self.whitebeet.v2gStartCharging() #TODO: stimmt das so?
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))'''
 
     def _handleChargingStopped(self, data):
         """
         Handle the ChargingStopped notification
         """
         print("\"Charging Stopped\" received")
-        self.whitebeet.v2gEvParseChargingStopped(data)
-        try:
-            self.whitebeet.v2gStopCharging() #TODO: stimmt das so?
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+        self.battery.setCharging(False)
 
     def _handlePostChargingReady(self, data):
         """
@@ -321,6 +321,12 @@ class Ev():
         """
         print("\"Post Charging Ready\" received")
         self.whitebeet.v2gEvParsePostChargingReady(data)
+        try:
+            self.whitebeet.v2gStopCharging()
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))
         
     def _handleNotificationReceived(self, data):
         """
@@ -344,7 +350,7 @@ class Ev():
         """
         print("\"Session Error\" received")
         message = self.whitebeet.v2gEvParseSessionError(data)
-        print("Error code: {}".format(message['error'].hex()))
+        print("Error code: {}".format(message['error']))
 
     def getBattery(self):
         """

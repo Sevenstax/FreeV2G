@@ -162,7 +162,7 @@ class Battery():
 
     def statusStopCharging(self):
         stopCharging = False
-        currentBatteryLevel = self.batteryLevel / BATTERY_ENERGY_CAPACITY * 100.0
+        currentBatteryLevel = self.batteryLevel / self.capacity * 100.0
         if(currentBatteryLevel >= BATTERY_END_VALUE):
             stopCharging = True
         return stopCharging
@@ -175,6 +175,6 @@ class Battery():
                 energy = self.reportedVoltageLevel * self.reportedCurrentLevel
                 energy *= BATTERY_TIME_STEP / 1000.0 / 3600.0
                 self.batteryLevel += energy
-                if((self.full == False) and (self.batteryLevel > BATTERY_ENERGY_CAPACITY)):
-                    self.batteryLevel = BATTERY_ENERGY_CAPACITY
+                if((self.full == False) and (self.batteryLevel > self.capacity)):
+                    self.batteryLevel = self.capacity
                     self.full = True
