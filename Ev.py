@@ -4,12 +4,20 @@ from scapy.automaton import Message
 from Whitebeet import *
 from Battery import *
 
-class Evse():
+class Ev():
 
     def __init__(self, iface, mac):
         self.whitebeet = Whitebeet(iface, mac)
         self.battery = Battery()
-        self.schedule = None
+
+        self.evid = list(bytes.fromhex(mac.replace(":","")))
+        self.protocol_count = 2
+        self.protocols = [0, 1]
+        self.payment_method_count = 1
+        self.payment_method = [0]
+        self.energy_transfer_mode_count = 1
+        self.energy_transfer_mode = [0]
+        self.battery_capacity = [50, 0, 0]
 
     def __enter__(self):
         return self
@@ -33,6 +41,8 @@ class Evse():
         print("Start the CP service")
         self.whitebeet.controlPilotStart()
         print("Start SLAC in EV mode")
+        self.whitebeet.slacSetValidationConfiguration(0)
+
         self.whitebeet.slacStart(0)
         time.sleep(2)
 
@@ -42,27 +52,21 @@ class Evse():
         When an EVSE connects the state changes to state B and we can continue with further steps.
         """
         timestamp_start = time.time()
-        cp_state = self.whitebeet.controlPilotGetState()
-        if cp_state == 1:
-            print("EVSE already connected")
+        cp_dc = self.whitebeet.controlPilotGetDutyCycle()
+        if cp_dc < 10.0 and cp_dc > 0.1:
+            print("EVSE connected")
             return True
-        elif cp_state > 1:
-            print("CP in wrong state: {}".format(cp_state))
-            return False
         else:
             print("Wait until an EVSE connects")
             while True:
-                cp_state = self.whitebeet.controlPilotGetState()
+                cp_dc = self.whitebeet.controlPilotGetDutyCycle()
                 if timeout != None and timestamp_start + timeout > time.time():
                     return False
-                if cp_state == 0:
-                    time.sleep(0.1)
-                elif cp_state == 1:
+                if cp_dc < 10.0 and cp_dc > 0.1:
                     print("EVSE connected")
                     return True
                 else:
-                    print("CP in wrong state: {}".format(cp_state))
-                    return False
+                    time.sleep(0.1)
 
     def _handleEvseConnected(self):
         """
@@ -70,7 +74,10 @@ class Evse():
         to answer SLAC request for the next 50s. After that we set the duty cycle on the CP to 5%
         which indicates that the EVSE can start with sending SLAC requests.
         """
+        print("Change State to State C")
+        self.whitebeet.controlPilotSetResistorValue(1)        
         print("Start SLAC matching")
+        time.sleep(5.0)
         self.whitebeet.slacStartMatching()
         try:
             if self.whitebeet.slacMatched() == True:
@@ -92,7 +99,8 @@ class Evse():
         """
         print("Set V2G mode to EV")
         self.whitebeet.v2gSetMode(0)
-        self.whitebeet.v2gSetConfigruation()
+
+        self.whitebeet.v2gSetConfiguration(self.evid, self.protocol_count, self.protocols, self.payment_method_count, self.payment_method, self.energy_transfer_mode_count, self.energy_transfer_mode, self.battery_capacity)
         time.sleep(0.1)
         print("Start V2G")
         self.whitebeet.v2gStart()
@@ -102,7 +110,6 @@ class Evse():
                 self._handleSessionStarted(data)
             elif id == 0xC1:
                 self._handleDCChargeParametersChanged(data)
-                break
             elif id == 0xC2:
                 self._handleACChargeParametersChanged(data)
             elif id == 0xC3:
@@ -252,6 +259,13 @@ class Evse():
         """
         print("\"Charging Started\" received")
         self.whitebeet.v2gEvParseChargingStarted(data)
+        self.battery.startCharging()
+        try:
+            self.whitebeet.v2gStartCharging() #TODO: stimmt das so?
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))
 
     def _handleChargingStopped(self, data):
         """
