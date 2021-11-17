@@ -11,7 +11,7 @@ class Ev():
 
         self.battery = Battery()
         self.battery.setCapacity(50000)
-        self.battery.setBatteryLevel(50000 * 0.5)
+        self.battery.setBatteryLevel(50000 * 0.9)
 
 
         self.evid = list(bytes.fromhex(mac.replace(":","")))
@@ -27,16 +27,16 @@ class Ev():
         self.min_voltage = 50
         self.min_current = 1
         self.min_power = self.min_voltage * self.min_current
-        self.max_voltage = 70
-        self.max_current = 100
-        self.max_power = self.max_voltage * self.max_current
-        self.soc = int((self.battery.getBatteryLevel() / self.battery.getCapacity()) * 100.0)
+        self.max_voltage = self.battery.getMaximumVoltageLimit()
+        self.max_current = self.battery.getMaximumCurrentLimit()
+        self.max_power = self.battery.getMaximumPowerLimit()
+        self.soc = self.battery.getSoC()
         self.status = 0
-        self.target_voltage = 60
-        self.target_current = 80
-        self.full_soc = 100
+        self.target_voltage = self.battery.getTargetVoltage()
+        self.target_current = self.battery.getTargetCurrent()
+        self.full_soc = self.battery.getFullSoC()
         self.bulk_soc = 80
-        self.energy_request = self.battery.getCapacity() * (100 - self.soc)
+        self.energy_request = self.battery.getCapacity() * self.soc // 100
         self.departure_time = 1000000
 
 
@@ -138,44 +138,52 @@ class Ev():
         oldVal = self.whitebeet.controlPilotGetDutyCycle()
         print("ControlPilot duty cycle: " + str(oldVal))
         while True:
-            newVal = self.whitebeet.controlPilotGetDutyCycle()
+            '''newVal = self.whitebeet.controlPilotGetDutyCycle()
             if newVal != oldVal:
                 oldVal = newVal
-                print("ControlPilot duty cycle: " + str(oldVal))
-            id, data = self.whitebeet.v2gEvReceiveRequest()
-            if id == 0xC0:
-                self._handleSessionStarted(data)
-            elif id == 0xC1:
-                self._handleDCChargeParametersChanged(data)
-            elif id == 0xC2:
-                self._handleACChargeParametersChanged(data)
-            elif id == 0xC3:
-                self._handleScheduleReceived(data)
-            elif id == 0xC4:
-                self._handleCableCheckReady(data)
-            elif id == 0xC5:
-                self._handleCableCheckFinished(data)
-            elif id == 0xC6:
-                self._handlePreChargingReady(data)
-            elif id == 0xC7:
-                self._handleChargingReady(data)
-            elif id == 0xC8:
-                self._handleChargingStarted(data)
-            elif id == 0xC9:
-                self._handleChargingStopped(data)
-            elif id == 0xCA:
-                self._handlePostChargingReady(data)
-            elif id == 0xCB:
-                self._handleSessionStopped(data)
-                break
-            elif id == 0xCC:
-                self._handleNotificationReceived(data)
-            elif id == 0xCD:
-                self._handleSessionError(data)
-            else:
-                print("Message ID not supported: {:02x}".format(id))
-                break
-            self.battery.tickSimulation()
+                print("ControlPilot duty cycle: " + str(oldVal))'''
+
+            if self.battery.tickSimulation():
+                if self.battery.getSoC() < self.battery.getFullSoC():
+                    self.soc = self.battery.getSoC()
+                    self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.max_voltage, self.max_current, self.max_power, self.soc, self.status, self.target_voltage, self.target_current)
+
+            try:
+                id, data = self.whitebeet.v2gEvReceiveRequest()
+                if id == 0xC0:
+                    self._handleSessionStarted(data)
+                elif id == 0xC1:
+                    self._handleDCChargeParametersChanged(data)
+                elif id == 0xC2:
+                    self._handleACChargeParametersChanged(data)
+                elif id == 0xC3:
+                    self._handleScheduleReceived(data)
+                elif id == 0xC4:
+                    self._handleCableCheckReady(data)
+                elif id == 0xC5:
+                    self._handleCableCheckFinished(data)
+                elif id == 0xC6:
+                    self._handlePreChargingReady(data)
+                elif id == 0xC7:
+                    self._handleChargingReady(data)
+                elif id == 0xC8:
+                    self._handleChargingStarted(data)
+                elif id == 0xC9:
+                    self._handleChargingStopped(data)
+                elif id == 0xCA:
+                    self._handlePostChargingReady(data)
+                elif id == 0xCB:
+                    self._handleSessionStopped(data)
+                elif id == 0xCC:
+                    self._handleNotificationReceived(data)
+                elif id == 0xCD:
+                    self._handleSessionError(data)
+                else:
+                    print("Message ID not supported: {:02x}".format(id))
+                    break
+            except:
+                pass
+            
         self.whitebeet.controlPilotSetResistorValue(1)
         self.whitebeet.v2gStop()
 
