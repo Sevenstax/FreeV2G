@@ -61,7 +61,7 @@ class Whitebeet():
         self.v2g_sub_start_pre_charging = 0xAB
         self.v2g_sub_start_charging = 0xAC
         self.v2g_sub_stop_charging = 0xAD
-        self.v2g_sub_stop_sessoin = 0xAE
+        self.v2g_sub_stop_session = 0xAE
         
 
         # EVSE sub IDs
@@ -962,7 +962,7 @@ class Whitebeet():
         Stops the currently active charging session after the notification Post Charging Ready has been received.
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_session, None)
     
     def v2gEvParseSessionStarted(self, data):
         """
