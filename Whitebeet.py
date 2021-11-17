@@ -514,7 +514,6 @@ class Whitebeet():
             payload += battery_capacity[0].to_bytes(1, "big")
             payload += battery_capacity[1].to_bytes(1, "big")
             payload += battery_capacity[2].to_bytes(1, "big")
-            self._printPayload(payload) 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
 
     def v2gGetConfiguration(self, data):
@@ -731,7 +730,7 @@ class Whitebeet():
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
 
-    def v2gDCChargingParameters(self, data):
+    def v2gGetDCChargingParameters(self, data):
         """
         Gets the DC charging parameters
         Returns dictionary
@@ -2082,5 +2081,5 @@ class Whitebeet():
         sub_id_list.append(0xCB)
         sub_id_list.append(0xCC)
         sub_id_list.append(0xCD)
-        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 30)
+        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 1)
         return response.sub_id, response.payload

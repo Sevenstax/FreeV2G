@@ -1,32 +1,31 @@
 import time
 
-
-BATTERY_TIME_STEP = 1000
-BATTERY_ENERGY_CAPACITY = 50000
-BATTERY_TARGET_VOLTAGE = 100
-BATTERY_TARGET_VOLTAGE_DELTA = 10
-BATTERY_END_VALUE = 100
-
 class Battery():
-
 
     def __init__(self):
         print("[Battery] __init__:")
         self.lastCalcTime = 0
+        self.timeStep = 100000
+
         self.charging = False
         self.full = False
+        self.capacity = 50000
+        self.fullSoC = 100
         self.batteryLevel = 0
+        self.soc = 0
+
         self.reportedVoltageLevel = 0
         self.reportedCurrentLevel = 0
-        self.maximumCurrentLimit = 0
-        self.maximumPowerLimit = 0
-        self.maximumVoltageLimit = 0
-        self.targetCurrent = 0
-        self.targetVoltage = 0
+        self.maximumCurrentLimit = 100
+        self.maximumPowerLimit = 5000
+        self.maximumVoltageLimit = 70
+        self.targetCurrent = 80
+        self.targetVoltage = 60
+        self.targetVoltageDelta = 10
         self.maxCurrentAC = 0
         self.maxVoltageAC = 0
         self.minCurrentAC = 0
-        self.capacity = 0
+
         self.request = 0
         self.remainingTimeToBulkSoc = 0
         self.remainingTimeToFullSoc = 0
@@ -48,14 +47,18 @@ class Battery():
         ret = ""
         ret += "*******************\n"
         ret += "Battery\n"
-        ret += "\t.voltageIn:\t" + str(self.voltageIn) + "\n"
-        ret += "\t.currentIn:\t" + str(self.currentIn) + "\n"
-        ret += "\t.batterylevel:\t" + str(self.batterylevel) + "\n"
-        ret += "\t.voltageMaxIn:\t" + str(self.voltageMaxIn) + "\n"
-        ret += "\t.currentMaxIn:\t" + str(self.currentMaxIn) + "\n"
+        ret += "\t.lastCalcTime:\t" + str(self.lastCalcTime) + "\n"
+        ret += "\t.reportedVoltageLevel:\t" + str(self.reportedVoltageLevel) + "\n"
+        ret += "\t.reportedCurrentLevel:\t" + str(self.reportedCurrentLevel) + "\n"
+        ret += "\t.maximumVoltageLimit:\t" + str(self.maximumVoltageLimit) + "\n"
+        ret += "\t.maximumCurrentLimit:\t" + str(self.maximumCurrentLimit) + "\n"
+        ret += "\t.maximumPowerLimit:\t" + str(self.maximumPowerLimit) + "\n"
         ret += "\t.targetVoltage:\t" + str(self.targetVoltage) + "\n"
-        ret += "\t.targetPower:\t" + str(self.targetPower) + "\n"
-        ret += "\t.timestep:\t" + str(self.timestep) + "\n"
+        ret += "\t.targetCurrent:\t" + str(self.targetCurrent) + "\n"
+        ret += "\t.capacity:\t" + str(self.capacity) + "\n"
+        ret += "\t.fullSoC:\t" + str(self.fullSoC) + "\n"
+        ret += "\t.batteryLevel:\t" + str(self.batteryLevel) + "\n"
+        ret += "\t.soc:\t\t" + str(self.soc) + "\n"
         ret += "\t.full:\t\t" + str(self.full) + "\n"
         ret += "\t.charging:\t" + str(self.charging) + "\n"
         ret += "*******************\n"
@@ -64,8 +67,19 @@ class Battery():
     def setCharging(self, charging):
         self.charging = charging
 
+    def setCapacity(self, capacity):
+        self.capacity = capacity
+
+    def setFullSoC(self, soc):
+        self.fullSoC = soc
+
     def setBatteryLevel(self, batteryLevel):
         self.batteryLevel = batteryLevel
+        self.soc = int((self.batteryLevel / self.capacity) * 100)
+
+    def setSOC(self, soc):
+        self.soc = soc
+        self.batteryLevel = soc / 100.0 * self.capacity
 
     def setReportedVoltageLevel(self, reportedVoltageLevel):
         self.reportedVoltageLevel = reportedVoltageLevel
@@ -97,9 +111,6 @@ class Battery():
     def setMinCurrentAC(self, minCurrentAC):
         self.minCurrentAC = minCurrentAC
 
-    def setCapacity(self, capacity):
-        self.capacity = capacity
-
     def setRequest(self, request):
         self.request = request
 
@@ -109,8 +120,17 @@ class Battery():
     def getCharging(self):
         return self.charging
 
+    def getCapacity(self):
+        return self.capacity
+
+    def getFullSoC(self):
+        return self.fullSoC
+
     def getBatteryLevel(self):
         return self.batteryLevel
+
+    def getSoC(self):
+        return self.soc
 
     def getReportedVoltageLevel(self):
         return self.reportedVoltageLevel
@@ -142,9 +162,6 @@ class Battery():
     def getMinCurrentAC(self):
         return self.minCurrentAC
 
-    def getCapacity(self):
-        return self.capacity
-
     def getRequest(self):
         return self.request
 
@@ -153,8 +170,8 @@ class Battery():
 
     def statusStartCharging(self):
         startCharging = False
-        minVoltage = BATTERY_TARGET_VOLTAGE - BATTERY_TARGET_VOLTAGE_DELTA
-        maxVoltage = BATTERY_TARGET_VOLTAGE + BATTERY_TARGET_VOLTAGE_DELTA
+        minVoltage = self.targetVoltage - self.targetVoltageDelta
+        maxVoltage = self.targetVoltage + self.targetVoltageDelta
         if((self.reportedVoltageLevel > minVoltage) and (self.reportedVoltageLevel < maxVoltage)):
             startCharging = True
             self.startCharging = True
@@ -163,18 +180,24 @@ class Battery():
     def statusStopCharging(self):
         stopCharging = False
         currentBatteryLevel = self.batteryLevel / self.capacity * 100.0
-        if(currentBatteryLevel >= BATTERY_END_VALUE):
+        if(currentBatteryLevel >= self.fullSoC):
             stopCharging = True
         return stopCharging
 
     def tickSimulation(self):
+        ticked = False
         present = time.time_ns() // 1000
-        if((present - self.lastCalcTime) > BATTERY_TIME_STEP):
+        if((present - self.lastCalcTime) > self.timeStep):
+            ticked = True
             self.lastCalcTime = present
-            if(self.charging == True):
+            if(self.charging == True and self.soc < self.fullSoC):
                 energy = self.reportedVoltageLevel * self.reportedCurrentLevel
-                energy *= BATTERY_TIME_STEP / 1000.0 / 3600.0
+                energy *= self.timeStep / 1000.0 / 3600.0
                 self.batteryLevel += energy
+                self.soc = int((self.batteryLevel / self.capacity) * 100)
                 if((self.full == False) and (self.batteryLevel > self.capacity)):
                     self.batteryLevel = self.capacity
                     self.full = True
+                print(str(self))
+
+        return ticked
