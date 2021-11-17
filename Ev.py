@@ -10,9 +10,8 @@ class Ev():
         self.whitebeet = Whitebeet(iface, mac)
 
         self.battery = Battery()
-        self.battery.setCapacity(50000)
+        self.battery.capacity = 50000
         self.battery.setBatteryLevel(50000 * 0.9)
-
 
         self.evid = list(bytes.fromhex(mac.replace(":","")))
         self.protocol_count = 2
@@ -24,21 +23,12 @@ class Ev():
         self.battery_capacity = list(int(50000).to_bytes(2, "big"))
         self.battery_capacity.append(0)
 
-        self.min_voltage = 50
+        self.min_voltage = 220
         self.min_current = 1
         self.min_power = self.min_voltage * self.min_current
-        self.max_voltage = self.battery.getMaximumVoltageLimit()
-        self.max_current = self.battery.getMaximumCurrentLimit()
-        self.max_power = self.battery.getMaximumPowerLimit()
-        self.soc = self.battery.getSoC()
         self.status = 0
-        self.target_voltage = self.battery.getTargetVoltage()
-        self.target_current = self.battery.getTargetCurrent()
-        self.full_soc = self.battery.getFullSoC()
-        self.bulk_soc = 80
-        self.energy_request = self.battery.getCapacity() * self.soc // 100
+        self.energy_request = self.battery.capacity * self.battery.getSOC() // 100
         self.departure_time = 1000000
-
 
     def __enter__(self):
         return self
@@ -127,7 +117,7 @@ class Ev():
         print("Set V2G configuration")
         self.whitebeet.v2gSetConfiguration(self.evid, self.protocol_count, self.protocols, self.payment_method_count, self.payment_method, self.energy_transfer_mode_count, self.energy_transfer_mode, self.battery_capacity)
         print("Set DC charging parameters")
-        self.whitebeet.v2SetDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.max_voltage, self.max_current, self.max_power, self.soc, self.status, self.target_voltage, self.target_current, self.full_soc, self.bulk_soc, self.energy_request, self.departure_time)
+        self.whitebeet.v2SetDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current, self.battery.full_soc, self.battery.bulk_soc, self.energy_request, self.departure_time)
         print("Start V2G")
         self.whitebeet.v2gStart()
         print("Change State to State C")
@@ -138,15 +128,14 @@ class Ev():
         oldVal = self.whitebeet.controlPilotGetDutyCycle()
         print("ControlPilot duty cycle: " + str(oldVal))
         while True:
-            '''newVal = self.whitebeet.controlPilotGetDutyCycle()
-            if newVal != oldVal:
-                oldVal = newVal
-                print("ControlPilot duty cycle: " + str(oldVal))'''
 
             if self.battery.tickSimulation():
-                if self.battery.getSoC() < self.battery.getFullSoC():
-                    self.soc = self.battery.getSoC()
-                    self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.max_voltage, self.max_current, self.max_power, self.soc, self.status, self.target_voltage, self.target_current)
+                if self.battery.getSOC() < self.battery.full_soc:
+                    self.soc = self.battery.getSOC()
+                    self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current)
+                elif self.battery.is_charging == True:
+                    self.battery.is_charging = False
+                    self.whitebeet.v2gStopCharging(False)
 
             try:
                 id, data = self.whitebeet.v2gEvReceiveRequest()
@@ -174,6 +163,7 @@ class Ev():
                     self._handlePostChargingReady(data)
                 elif id == 0xCB:
                     self._handleSessionStopped(data)
+                    break
                 elif id == 0xCC:
                     self._handleNotificationReceived(data)
                 elif id == 0xCD:
@@ -216,10 +206,10 @@ class Ev():
         print("\tEVSE status: {}".format(message['evse_status']))
         
         if message["evse_status"] != 0:
-            self.battery.setCharging(False)
+            self.battery.is_charging = False
         
-        self.battery.setReportedVoltageLevel(message["evse_present_voltage"])
-        self.battery.setReportedCurrentLevel(message["evse_present_current"])
+        self.battery.in_voltage = message["evse_present_voltage"]
+        self.battery.in_current = message["evse_present_current"]
 
     def _handleACChargeParametersChanged(self, data):
         """
@@ -303,6 +293,7 @@ class Ev():
         self.whitebeet.v2gEvParseChargingReady(data)
         try:
             self.whitebeet.v2gStartCharging()
+            pass
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
@@ -314,14 +305,14 @@ class Ev():
         """
         print("\"Charging Started\" received")
         self.whitebeet.v2gEvParseChargingStarted(data)
-        self.battery.setCharging(True)
+        self.battery.is_charging = True
 
     def _handleChargingStopped(self, data):
         """
         Handle the ChargingStopped notification
         """
         print("\"Charging Stopped\" received")
-        self.battery.setCharging(False)
+        self.battery.is_charging = False
 
     def _handlePostChargingReady(self, data):
         """
@@ -330,7 +321,7 @@ class Ev():
         print("\"Post Charging Ready\" received")
         self.whitebeet.v2gEvParsePostChargingReady(data)
         try:
-            self.whitebeet.v2gStopCharging()
+            self.whitebeet.v2gStopSession()
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
@@ -342,7 +333,12 @@ class Ev():
         """
         print("\"Notification Received\" received")
         message = self.whitebeet.v2gEvParseNotificationReceived(data)
-        print("Type : {}".format(message['type'].hex()))
+        if message["type"] == 0:
+            self.battery.is_charging = False
+        elif message["type"] == 1:
+            self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current)
+
+        print("Type : {}".format(message['type']))
         print("Maximum delay : {}".format(message['max_delay']))
 
     def _handleSessionStopped(self, data):
@@ -351,6 +347,7 @@ class Ev():
         """
         print("\"Session Stopped\" received")
         self.whitebeet.v2gEvParseSessionStopped(data)
+        self.battery.is_charging = False
     
     def _handleSessionError(self, data):
         """
@@ -358,7 +355,30 @@ class Ev():
         """
         print("\"Session Error\" received")
         message = self.whitebeet.v2gEvParseSessionError(data)
+
+        errorType = message['error']
+        errorString = "error code not available"
+
+        if errorType == 1:
+            errorString = "Selected payment option unavailable"
+        elif errorType == 2:
+            errorString = "Selected energy transfer mode unavailable"
+        elif errorType == 3:
+            errorString = "Wrong charge parameter"
+        elif errorType == 4:
+            errorString = "Power delivery not applied (EVSE is not able to deliver energy)"
+        elif errorType == 5:
+            errorString = "Charging profile invalid"
+        elif errorType == 6:
+            errorString = "Contactor error"
+        elif errorType == 7:
+            errorString = "EVSE present voltage to low"
+        elif errorType == 8:
+            errorString = "Unspecified error (No details delivred by EVSE)"
+
         print("Error code: {}".format(message['error']))
+        print("\t" + errorString)
+        self.battery.is_charging = False
 
     def getBattery(self):
         """
@@ -377,20 +397,6 @@ class Ev():
             return self.whitebeet
         else:
             return None
-
-    def setSchedule(self, schedule):
-        """
-        Sets the schedule. This schedule will be used when the whitebeet requests this data
-        """
-        if isinstance(schedule, list) == False:
-            print("Schedule needs to be of type list")
-            return False
-        elif len(schedule) != 0 and any(isinstance(entry, dict) == False for entry in schedule):
-            print("Entries in schedule need to be of type dict")
-            return False
-        else:
-            self.schedule = schedule
-            return True
 
     def loop(self):
         """
