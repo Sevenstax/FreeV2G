@@ -12,23 +12,47 @@ class Ev():
         self.battery = Battery()
         self.battery.capacity = 50000
         self.battery.setBatteryLevel(50000 * 0.9)
+        self.scheduleStartTime = time.time()
 
-        self.evid = list(bytes.fromhex(mac.replace(":","")))
-        self.protocol_count = 2
-        self.protocols = [0, 1]
-        self.payment_method_count = 1
-        self.payment_method = [0]
-        self.energy_transfer_mode_count = 1
-        self.energy_transfer_mode = [1]
-        self.battery_capacity = list(int(50000).to_bytes(2, "big"))
-        self.battery_capacity.append(0)
+        self.config = {}
+        self.config["evid"] = list(bytes.fromhex(mac.replace(":","")))
+        self.config["protocol_count"] = 2
+        self.config["protocols"] = [0, 1]
+        self.config["payment_method_count"] = 1
+        self.config["payment_method"] = [0]
+        self.config["energy_transfer_mode_count"] = 2
+        self.config["energy_transfer_mode"] = [1, 4]
+        self.config["battery_capacity"] = list(int(50000).to_bytes(2, "big"))
+        self.config["battery_capacity"].append(0)
 
-        self.min_voltage = 220
-        self.min_current = 1
-        self.min_power = self.min_voltage * self.min_current
-        self.status = 0
-        self.energy_request = self.battery.capacity * self.battery.getSOC() // 100
-        self.departure_time = 1000000
+        self.DCchargingParams = {}
+        self.DCchargingParams["min_voltage"] = 220
+        self.DCchargingParams["min_current"] = 1
+        self.DCchargingParams["min_power"] = self.DCchargingParams["min_voltage"] * self.DCchargingParams["min_current"]
+        self.DCchargingParams["status"] = 0
+        self.DCchargingParams["energy_request"] = self.battery.capacity * self.battery.getSOC() // 100
+        self.DCchargingParams["departure_time"] = 1000000
+        self.DCchargingParams["max_voltage"] = self.battery.max_voltage
+        self.DCchargingParams["max_current"] = self.battery.max_current
+        self.DCchargingParams["max_power"] = self.battery.max_power
+        self.DCchargingParams["soc"] = self.battery.getSOC()
+        self.DCchargingParams["target_voltage"] = self.battery.target_voltage
+        self.DCchargingParams["target_current"] = self.battery.target_current
+        self.DCchargingParams["full_soc"] = self.battery.full_soc
+        self.DCchargingParams["bulk_soc"] = self.battery.bulk_soc
+
+        self.ACchargingParams = {}
+        self.ACchargingParams["min_voltage"] = 220
+        self.ACchargingParams["min_current"] = 1
+        self.ACchargingParams["min_power"] = self.ACchargingParams["min_voltage"] * self.ACchargingParams["min_current"]
+        self.ACchargingParams["energy_request"] = self.battery.capacity * self.battery.getSOC() // 100
+        self.ACchargingParams["departure_time"] = 1000000
+        self.ACchargingParams["max_voltage"] = self.battery.max_voltage
+        self.ACchargingParams["max_current"] = self.battery.max_current
+        self.ACchargingParams["max_power"] = self.battery.max_power
+
+        self.schedule = {}
+        self.currentSchedule = 0
 
     def __enter__(self):
         return self
@@ -115,9 +139,11 @@ class Ev():
         print("Set V2G mode to EV")
         self.whitebeet.v2gSetMode(0)
         print("Set V2G configuration")
-        self.whitebeet.v2gSetConfiguration(self.evid, self.protocol_count, self.protocols, self.payment_method_count, self.payment_method, self.energy_transfer_mode_count, self.energy_transfer_mode, self.battery_capacity)
+        self.whitebeet.v2gSetConfiguration(self.config)
         print("Set DC charging parameters")
-        self.whitebeet.v2SetDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current, self.battery.full_soc, self.battery.bulk_soc, self.energy_request, self.departure_time)
+        self.DCchargingParams["soc"] = self.battery.getSOC()
+        self.whitebeet.v2gSetDCChargingParameters(self.DCchargingParams)
+        self.whitebeet.v2gSetACChargingParameters(self.ACchargingParams)
         print("Start V2G")
         self.whitebeet.v2gStart()
         print("Change State to State C")
@@ -129,14 +155,28 @@ class Ev():
         print("ControlPilot duty cycle: " + str(oldVal))
         while True:
 
+            # tick battery simulation
             if self.battery.tickSimulation():
+
+                # check which schedule to use
+                if ({'start', 'power', 'interval'} <= set(self.schedule)):
+                    if time.time() >= (self.scheduleStartTime + self.schedule['start'][self.currentSchedule]):
+                        if(len(self.schedule['power']) > self.currentSchedule):
+                            self.currentSchedule += 1
+                        else:
+                            self.whitebeet.v2gStopCharging(False)
+                    
+                    if self.schedule['power'][self.currentSchedule] > (self.battery.target_current * self.battery.target_voltage):
+                        self.battery.target_current = self.schedule['power'] / self.battery.target_voltage
+
                 if self.battery.getSOC() < self.battery.full_soc:
-                    self.soc = self.battery.getSOC()
-                    self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current)
+                    self.DCchargingParams["soc"] = self.battery.getSOC()
+                    self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
                 elif self.battery.is_charging == True:
                     self.battery.is_charging = False
                     self.whitebeet.v2gStopCharging(False)
 
+            # receive messages from whitebeet
             try:
                 id, data = self.whitebeet.v2gEvReceiveRequest()
                 if id == 0xC0:
@@ -207,7 +247,7 @@ class Ev():
         
         if message["evse_status"] != 0:
             self.battery.is_charging = False
-        
+
         self.battery.in_voltage = message["evse_present_voltage"]
         self.battery.in_current = message["evse_present_current"]
 
@@ -229,7 +269,7 @@ class Ev():
         message = self.whitebeet.v2gEvParseScheduleReceived(data)
         print("\tTuple count: {}".format(message['tuple_count']))
         print("\tTuple id: {}".format(message['tuple_id']))
-        print("\tEntries count: {}".format(message['entries_count']))
+        print("\tEntries count: {}".format(message['']))
         start = []
         interval = []
         power = []
@@ -245,8 +285,17 @@ class Ev():
             print("\tPower: {}".format(entry['power']))
             i += 1
         
+        self.schedule["schedule_tuple_id"] = message['tuple_id']
+        self.schedule["chargin_profile_entries_count"] = message['entries_count']
+        self.schedule["start"] = start
+        self.schedule["interval"] = interval
+        self.schedule["power"] = power
+
+        self.scheduleStartTime = time.time()
+        self.currentSchedule = 0
+        
         try:
-            self.whitebeet.v2gSetChargingProfile(message['tuple_count'], message['entries_count'], start, interval, power)
+            self.whitebeet.v2gSetChargingProfile(self.schedule)
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
@@ -336,7 +385,8 @@ class Ev():
         if message["type"] == 0:
             self.battery.is_charging = False
         elif message["type"] == 1:
-            self.whitebeet.v2gUpdateDCChargingParameters(self.min_voltage, self.min_current, self.min_power, self.battery.max_voltage, self.battery.max_current, self.battery.max_power, self.battery.getSOC(), self.status, self.battery.target_voltage, self.battery.target_current)
+            self.DCchargingParams["soc"] = self.battery.getSOC()
+            self.whitebeet.v2gSetDCChargingParameters(self.DCchargingParams)
 
         print("Type : {}".format(message['type']))
         print("Maximum delay : {}".format(message['max_delay']))

@@ -1,3 +1,4 @@
+from multiprocessing import Value
 import time
 import struct
 from FramingInterface import *
@@ -52,7 +53,7 @@ class Whitebeet():
         self.v2g_sub_set_dc_charging_parameters = 0xA2
         self.v2g_sub_update_dc_charging_parameters = 0xA3
         self.v2g_sub_get_dc_charging_parameters = 0xA4
-        self.v2g_sub_set_Ac_charging_parameters = 0xA5
+        self.v2g_sub_set_ac_charging_parameters = 0xA5
         self.v2g_sub_update_ac_charging_parameters = 0xA6
         self.v2g_sub_get_ac_charging_parameters = 0xA7
         self.v2g_sub_set_charging_profile = 0xA8
@@ -471,49 +472,51 @@ class Whitebeet():
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop, None)
 
     # EV 
-    def v2gSetConfiguration(self, evid, protocol_count, protocol, payment_method_count, payment_method, energy_transfer_mode_count, energy_transfer_mode, battery_capacity):
+    def v2gSetConfiguration(self, config):
         """
         Sets the configuration for EV mode
         """
-        #if evid is not None and (not isinstance(evid, list) or len(evid) != 6):
-        if evid is not None and (not isinstance(evid, list) or len(evid) != 6):
+        if not ({"evid", "protocol_count", "protocols", "payment_method_count", "payment_method", "energy_transfer_mode_count", "energy_transfer_mode", "battery_capacity", "battery_capacity"} <= set(config)):
+            raise ValueError("Missing keys in config dict")
+
+        if config["evid"] is not None and (not isinstance(config["evid"], list) or len(config["evid"]) != 6):
             raise ValueError("evid needs to be of type list with length 6")
-        elif not isinstance(protocol_count, int) or not (1 <= protocol_count <= 2):
+        elif not isinstance(config["protocol_count"], int) or not (1 <= config["protocol_count"] <= 2):
             raise ValueError("protocol_count needs to be of type int with value 1 or 2")
-        elif protocol is not None and (not isinstance(protocol, list) or len(protocol) != protocol_count):
+        elif config["protocols"] is not None and (not isinstance(config["protocols"], list) or len(config["protocols"]) != config["protocol_count"]):
             raise ValueError("protocol needs to be of type int with value 0 or 1")
-        elif not isinstance(payment_method_count, int):
+        elif not isinstance(config["payment_method_count"], int):
             raise ValueError("payment_method_count needs to be of type int")
-        elif not isinstance(payment_method, list):
+        elif not isinstance(config["payment_method"], list):
             raise ValueError("payment_method needs to be of type list")
-        elif not isinstance(energy_transfer_mode_count, int) or not (1 <= energy_transfer_mode_count <= 6):
+        elif not isinstance(config["energy_transfer_mode_count"], int) or not (1 <= config["energy_transfer_mode_count"] <= 6):
             raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
-        elif energy_transfer_mode is not None and (not isinstance(energy_transfer_mode, list) or len(energy_transfer_mode) != energy_transfer_mode_count):
+        elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list) or len(config["energy_transfer_mode"]) != config["energy_transfer_mode_count"]):
             raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
-        elif battery_capacity is not None and (not isinstance(battery_capacity, list) or len(battery_capacity) != 3):
+        elif config["battery_capacity"] is not None and (not isinstance(config["battery_capacity"], list) or len(config["battery_capacity"]) != 3):
             raise ValueError("payment_method needs to be of type list with length 3")
         else:
             payload = b""
-            for i in evid:
+            for i in config["evid"]:
                 payload += i.to_bytes(1, "big")
-            payload += protocol_count.to_bytes(1, "big")
+            payload += config["protocol_count"].to_bytes(1, "big")
             payload += int(0).to_bytes(1, "big")
-            if protocol_count == 2:
+            if config["protocol_count"] == 2:
                 payload += int(1).to_bytes(1, "big")
 
-            payload += payment_method_count.to_bytes(1, "big")
-            for method in payment_method:
+            payload += config["payment_method_count"].to_bytes(1, "big")
+            for method in config["payment_method"]:
                 payload += method.to_bytes(1, "big")
 
-            payload += energy_transfer_mode_count.to_bytes(1, "big")
-            for mode in energy_transfer_mode:
-                if mode not in range(0, 5):
+            payload += config["energy_transfer_mode_count"].to_bytes(1, "big")
+            for mode in config["energy_transfer_mode"]:
+                if mode not in range(0, 6):
                     raise ValueError("values of energy_transfer_mode out of range")
                 else:
                     payload += mode.to_bytes(1, "big")
-            payload += battery_capacity[0].to_bytes(1, "big")
-            payload += battery_capacity[1].to_bytes(1, "big")
-            payload += battery_capacity[2].to_bytes(1, "big")
+            payload += config["battery_capacity"][0].to_bytes(1, "big")
+            payload += config["battery_capacity"][1].to_bytes(1, "big")
+            payload += config["battery_capacity"][2].to_bytes(1, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
 
     def v2gGetConfiguration(self, data):
@@ -546,187 +549,190 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return ret
 
-    def v2SetDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current, full_soc, bulk_soc, energy_request, departure_time):
+    def v2gSetDCChargingParameters(self, parameter):
         """
         Sets the DC charging parameters of the EV
         """
-        if not isinstance(min_voltage, int) and not (isinstance(min_voltage, tuple) and len(min_voltage) == 2):
+        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "status", "energy_request", "departure_time", "max_voltage", "max_current", "max_power", "soc", "target_voltage", "target_current", "full_soc", "bulk_soc"} <= set(parameter)):
+            raise ValueError("Missing keys in parameter dict")
+        elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(min_current, int) and not (isinstance(min_current, tuple) and len(min_current) == 2):
+        elif not isinstance(parameter["min_current"], int) and not (isinstance(parameter["min_current"], tuple) and len(parameter["min_current"]) == 2):
             raise ValueError("Parameter min_current needs to be of type int or tuple with length 2")
-        elif not isinstance(min_power, int) and not (isinstance(min_power, tuple) and len(min_power) == 2):
+        elif not isinstance(parameter["min_power"], int) and not (isinstance(parameter["min_power"], tuple) and len(parameter["min_power"]) == 2):
             raise ValueError("Parameter min_power needs to be of type int or tuple with length 2")
-        elif not isinstance(max_voltage, int) and not (isinstance(max_voltage, tuple) and len(max_voltage) == 2):
+        elif not isinstance(parameter["max_voltage"], int) and not (isinstance(parameter["max_voltage"], tuple) and len(parameter["max_voltage"]) == 2):
             raise ValueError("Parameter max_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(max_power, int) and not (isinstance(max_power, tuple) and len(max_power) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(soc, int) or soc not in range(0, 101):
+        elif not isinstance(parameter["max_current"], int) and not (isinstance(parameter["max_current"], tuple) and len(parameter["max_current"]) == 2):
+            raise ValueError("Parameter max_current needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["max_power"], int) and not (isinstance(parameter["max_power"], tuple) and len(parameter["max_power"]) == 2):
+            raise ValueError("Parameter max_power needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["soc"], int) or parameter["soc"] not in range(0, 101):
             raise ValueError("Parameter soc needs to be of type int with a vlaue range from 0 to 100")
-        elif not isinstance(status, int) or status not in range(0, 8):
+        elif not isinstance(parameter["status"], int) or parameter["status"] not in range(0, 8):
             raise ValueError("Parameter status needs to be of type int with a vlaue range from 0 to 7")
-        elif not isinstance(target_voltage, int) and not (isinstance(target_voltage, tuple) and len(target_voltage) == 2):
+        elif not isinstance(parameter["target_voltage"], int) and not (isinstance(parameter["target_voltage"], tuple) and len(parameter["target_voltage"]) == 2):
             raise ValueError("Parameter target_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(target_current, int) and not (isinstance(target_current, tuple) and len(target_current) == 2):
+        elif not isinstance(parameter["target_current"], int) and not (isinstance(parameter["target_current"], tuple) and len(parameter["target_current"]) == 2):
             raise ValueError("Parameter target_current needs to be of type int or tuple with length 2")
-        elif not isinstance(full_soc, int) or full_soc not in range(0, 101):
+        elif not isinstance(parameter["full_soc"], int) or parameter["full_soc"] not in range(0, 101):
             raise ValueError("Parameter full_soc needs to be of type int with a value range from 0 to 100")
-        elif not isinstance(bulk_soc, int) or bulk_soc not in range(0, 101):
+        elif not isinstance(parameter["bulk_soc"], int) or parameter["bulk_soc"] not in range(0, 101):
             raise ValueError("Parameter bulk_soc needs to be of type int with a value range from 0 to 100")
-        elif not isinstance(energy_request, int) and not (isinstance(energy_request, tuple) and len(energy_request) == 2):
+        elif not isinstance(parameter["energy_request"], int) and not (isinstance(parameter["energy_request"], tuple) and len(parameter["energy_request"]) == 2):
             raise ValueError("Parameter energy_request needs to be of type int or tuple with length 2")
-        elif not isinstance(departure_time, int) or departure_time not in range(0, 2**32 + 1):
+        elif not isinstance(parameter["departure_time"], int) or parameter["departure_time"] not in range(0, 2**32 + 1):
             raise ValueError("Parameter departure_time needs to be of type int with a value range from 0 to 2**32")
         else:
             payload = b""
-            if isinstance(min_voltage, int):
-                payload += min_voltage.to_bytes(2, "big")
+            if isinstance(parameter["min_voltage"], int):
+                payload += parameter["min_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_voltage[0].to_bytes(2, "big")
-                payload += min_voltage[1].to_bytes(1, "big")
-            if isinstance(min_current, int):
-                payload += min_current.to_bytes(2, "big")
+                payload += parameter["min_voltage"][0].to_bytes(2, "big")
+                payload += parameter["min_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_current"], int):
+                payload += parameter["min_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_current[0].to_bytes(2, "big")
-                payload += min_current[1].to_bytes(1, "big")
-            if isinstance(min_power, int):
-                payload += min_power.to_bytes(2, "big")
+                payload += parameter["min_current"][0].to_bytes(2, "big")
+                payload += parameter["min_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_power"], int):
+                payload += parameter["min_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_power[0].to_bytes(2, "big")
-                payload += min_power[1].to_bytes(1, "big")
+                payload += parameter["min_power"][0].to_bytes(2, "big")
+                payload += parameter["min_power"][1].to_bytes(1, "big")
             
-            if isinstance(max_voltage, int):
-                payload += max_voltage.to_bytes(2, "big")
+            if isinstance(parameter["max_voltage"], int):
+                payload += parameter["max_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_voltage[0].to_bytes(2, "big")
-                payload += max_voltage[1].to_bytes(1, "big")
-            if isinstance(max_current, int):
-                payload += max_current.to_bytes(2, "big")
+                payload += parameter["max_voltage"][0].to_bytes(2, "big")
+                payload += parameter["max_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_current"], int):
+                payload += parameter["max_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_current[0].to_bytes(2, "big")
-                payload += max_current[1].to_bytes(1, "big")
-            if isinstance(max_power, int):
-                payload += max_power.to_bytes(2, "big")
+                payload += parameter["max_current"][0].to_bytes(2, "big")
+                payload += parameter["max_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_power"], int):
+                payload += parameter["max_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_power[0].to_bytes(2, "big")
-                payload += max_power[1].to_bytes(1, "big")
+                payload += parameter["max_power"][0].to_bytes(2, "big")
+                payload += parameter["max_power"][1].to_bytes(1, "big")
 
-            payload += soc.to_bytes(1, "big")
-            payload += status.to_bytes(1, "big")
+            payload += parameter["soc"].to_bytes(1, "big")
+            payload += parameter["status"].to_bytes(1, "big")
 
-            if isinstance(target_voltage, int):
-                payload += target_voltage.to_bytes(2, "big")
+            if isinstance(parameter["target_voltage"], int):
+                payload += parameter["target_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += target_voltage[0].to_bytes(2, "big")
-                payload += target_voltage[1].to_bytes(1, "big")
-            if isinstance(target_current, int):
-                payload += target_current.to_bytes(2, "big")
+                payload += parameter["target_voltage"][0].to_bytes(2, "big")
+                payload += parameter["target_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["target_current"], int):
+                payload += parameter["target_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += target_current[0].to_bytes(2, "big")
-                payload += target_current[1].to_bytes(1, "big")
+                payload += parameter["target_current"][0].to_bytes(2, "big")
+                payload += parameter["target_current"][1].to_bytes(1, "big")
 
-            payload += full_soc.to_bytes(1, "big")
-            payload += bulk_soc.to_bytes(1, "big")
+            payload += parameter["full_soc"].to_bytes(1, "big")
+            payload += parameter["bulk_soc"].to_bytes(1, "big")
             
-            if isinstance(energy_request, int):
-                payload += energy_request.to_bytes(2, "big")
+            if isinstance(parameter["energy_request"], int):
+                payload += parameter["energy_request"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += energy_request[0].to_bytes(2, "big")
-                payload += energy_request[1].to_bytes(1, "big")
+                payload += parameter["energy_request"][0].to_bytes(2, "big")
+                payload += parameter["energy_request"][1].to_bytes(1, "big")
 
-            payload += departure_time.to_bytes(4, "big")
+            payload += parameter["departure_time"].to_bytes(4, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_dc_charging_parameters, payload)
 
-    def v2gUpdateDCChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, soc, status, target_voltage, target_current):
+    def v2gUpdateDCChargingParameters(self, parameter):
         """
         Updates the DC charging parameters of the EV
         """
-        if not isinstance(min_voltage, int) and not (isinstance(min_voltage, tuple) and len(min_voltage) == 2):
+        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "status","max_voltage", "max_current", "max_power", "soc", "target_voltage", "target_current"} <= set(parameter)):
+            raise ValueError("Missing keys in parameter dict")
+        elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(min_current, int) and not (isinstance(min_current, tuple) and len(min_current) == 2):
+        elif not isinstance(parameter["min_current"], int) and not (isinstance(parameter["min_current"], tuple) and len(parameter["min_current"]) == 2):
             raise ValueError("Parameter min_current needs to be of type int or tuple with length 2")
-        elif not isinstance(min_power, int) and not (isinstance(min_power, tuple) and len(min_power) == 2):
+        elif not isinstance(parameter["min_power"], int) and not (isinstance(parameter["min_power"], tuple) and len(parameter["min_power"]) == 2):
             raise ValueError("Parameter min_power needs to be of type int or tuple with length 2")
-        elif not isinstance(max_voltage, int) and not (isinstance(max_voltage, tuple) and len(max_voltage) == 2):
+        elif not isinstance(parameter["max_voltage"], int) and not (isinstance(parameter["max_voltage"], tuple) and len(parameter["max_voltage"]) == 2):
             raise ValueError("Parameter max_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(max_power, int) and not (isinstance(max_power, tuple) and len(max_power) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(soc, int) or soc not in range(0, 101):
+        elif not isinstance(parameter["max_current"], int) and not (isinstance(parameter["max_current"], tuple) and len(parameter["max_current"]) == 2):
+            raise ValueError("Parameter max_current needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["max_power"], int) and not (isinstance(parameter["max_power"], tuple) and len(parameter["max_power"]) == 2):
+            raise ValueError("Parameter max_power needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["soc"], int) or parameter["soc"] not in range(0, 101):
             raise ValueError("Parameter soc needs to be of type int with a vlaue range from 0 to 100")
-        elif not isinstance(status, int) or status not in range(0, 8):
+        elif not isinstance(parameter["status"], int) or parameter["status"] not in range(0, 8):
             raise ValueError("Parameter status needs to be of type int with a vlaue range from 0 to 7")
-        elif not isinstance(target_voltage, int) and not (isinstance(target_voltage, tuple) and len(target_voltage) == 2):
+        elif not isinstance(parameter["target_voltage"], int) and not (isinstance(parameter["target_voltage"], tuple) and len(parameter["target_voltage"]) == 2):
             raise ValueError("Parameter target_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(target_current, int) and not (isinstance(target_current, tuple) and len(target_current) == 2):
+        elif not isinstance(parameter["target_current"], int) and not (isinstance(parameter["target_current"], tuple) and len(parameter["target_current"]) == 2):
             raise ValueError("Parameter target_current needs to be of type int or tuple with length 2")
         else:
             payload = b""
-
-            if isinstance(min_voltage, int):
-                payload += min_voltage.to_bytes(2, "big")
+            if isinstance(parameter["min_voltage"], int):
+                payload += parameter["min_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_voltage[0].to_bytes(2, "big")
-                payload += min_voltage[1].to_bytes(1, "big")
-            if isinstance(min_current, int):
-                payload += min_current.to_bytes(2, "big")
+                payload += parameter["min_voltage"][0].to_bytes(2, "big")
+                payload += parameter["min_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_current"], int):
+                payload += parameter["min_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_current[0].to_bytes(2, "big")
-                payload += min_current[1].to_bytes(1, "big")
-            if isinstance(min_power, int):
-                payload += min_power.to_bytes(2, "big")
+                payload += parameter["min_current"][0].to_bytes(2, "big")
+                payload += parameter["min_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_power"], int):
+                payload += parameter["min_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_power[0].to_bytes(2, "big")
-                payload += min_power[1].to_bytes(1, "big")
+                payload += parameter["min_power"][0].to_bytes(2, "big")
+                payload += parameter["min_power"][1].to_bytes(1, "big")
             
-            if isinstance(max_voltage, int):
-                payload += max_voltage.to_bytes(2, "big")
+            if isinstance(parameter["max_voltage"], int):
+                payload += parameter["max_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_voltage[0].to_bytes(2, "big")
-                payload += max_voltage[1].to_bytes(1, "big")
-            if isinstance(max_current, int):
-                payload += max_current.to_bytes(2, "big")
+                payload += parameter["max_voltage"][0].to_bytes(2, "big")
+                payload += parameter["max_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_current"], int):
+                payload += parameter["max_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_current[0].to_bytes(2, "big")
-                payload += max_current[1].to_bytes(1, "big")
-            if isinstance(max_power, int):
-                payload += max_power.to_bytes(2, "big")
+                payload += parameter["max_current"][0].to_bytes(2, "big")
+                payload += parameter["max_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_power"], int):
+                payload += parameter["max_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_power[0].to_bytes(2, "big")
-                payload += max_power[1].to_bytes(1, "big")
+                payload += parameter["max_power"][0].to_bytes(2, "big")
+                payload += parameter["max_power"][1].to_bytes(1, "big")
 
-            payload += soc.to_bytes(1, "big")
-            payload += status.to_bytes(1, "big")
+            payload += parameter["soc"].to_bytes(1, "big")
+            payload += parameter["status"].to_bytes(1, "big")
 
-            if isinstance(target_voltage, int):
-                payload += target_voltage.to_bytes(2, "big")
+            if isinstance(parameter["target_voltage"], int):
+                payload += parameter["target_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += target_voltage[0].to_bytes(2, "big")
-                payload += target_voltage[1].to_bytes(1, "big")
-            if isinstance(target_current, int):
-                payload += target_current.to_bytes(2, "big")
+                payload += parameter["target_voltage"][0].to_bytes(2, "big")
+                payload += parameter["target_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["target_current"], int):
+                payload += parameter["target_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += target_current[0].to_bytes(2, "big")
-                payload += target_current[1].to_bytes(1, "big")
+                payload += parameter["target_current"][0].to_bytes(2, "big")
+                payload += parameter["target_current"][1].to_bytes(1, "big")
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
 
@@ -754,129 +760,139 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return ret
 
-    def v2SetACChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power, energy_request, departure_time):
+    def v2gSetACChargingParameters(self, parameter):
         """
         Sets the AC charging parameters of the EV
         """
-        if not isinstance(min_voltage, int) and not (isinstance(min_voltage, tuple) and len(min_voltage) == 2):
+        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "energy_request", "departure_time", "max_voltage", "max_current", "max_power"} <= set(parameter)):
+            raise ValueError("Missing keys in parameter dict")
+        elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(min_current, int) and not (isinstance(min_current, tuple) and len(min_current) == 2):
+        elif not isinstance(parameter["min_current"], int) and not (isinstance(parameter["min_current"], tuple) and len(parameter["min_current"]) == 2):
             raise ValueError("Parameter min_current needs to be of type int or tuple with length 2")
-        elif not isinstance(min_power, int) and not (isinstance(min_power, tuple) and len(min_power) == 2):
+        elif not isinstance(parameter["min_power"], int) and not (isinstance(parameter["min_power"], tuple) and len(parameter["min_power"]) == 2):
             raise ValueError("Parameter min_power needs to be of type int or tuple with length 2")
-        elif not isinstance(max_voltage, int) and not (isinstance(max_voltage, tuple) and len(max_voltage) == 2):
+        elif not isinstance(parameter["max_voltage"], int) and not (isinstance(parameter["max_voltage"], tuple) and len(parameter["max_voltage"]) == 2):
             raise ValueError("Parameter max_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(max_power, int) and not (isinstance(max_power, tuple) and len(max_power) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(energy_request, int) and not (isinstance(energy_request, tuple) and len(energy_request) == 2):
+        elif not isinstance(parameter["max_current"], int) and not (isinstance(parameter["max_current"], tuple) and len(parameter["max_current"]) == 2):
+            raise ValueError("Parameter max_current needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["max_power"], int) and not (isinstance(parameter["max_power"], tuple) and len(parameter["max_power"]) == 2):
+            raise ValueError("Parameter max_power needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["energy_request"], int) and not (isinstance(parameter["energy_request"], tuple) and len(parameter["energy_request"]) == 2):
             raise ValueError("Parameter energy_request needs to be of type int or tuple with length 2")
-        elif not isinstance(departure_time, int) or departure_time not in range(0, 2**32 + 1):
+        elif not isinstance(parameter["departure_time"], int) or parameter["departure_time"] not in range(0, 2**32 + 1):
             raise ValueError("Parameter departure_time needs to be of type int with a value range from 0 to 2**32")
         else:
             payload = b""
-            if isinstance(min_voltage, int):
-                payload += min_voltage.to_bytes(2, "big")
+            if isinstance(parameter["min_voltage"], int):
+                payload += parameter["min_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_voltage[0].to_bytes(2, "big")
-                payload += min_voltage[1].to_bytes(1, "big")
-            if isinstance(min_current, int):
-                payload += min_current.to_bytes(2, "big")
+                payload += parameter["min_voltage"][0].to_bytes(2, "big")
+                payload += parameter["min_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_current"], int):
+                payload += parameter["min_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_current[0].to_bytes(2, "big")
-                payload += min_current[1].to_bytes(1, "big")
-            if isinstance(min_power, int):
-                payload += min_power.to_bytes(2, "big")
+                payload += parameter["min_current"][0].to_bytes(2, "big")
+                payload += parameter["min_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_power"], int):
+                payload += parameter["min_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_power[0].to_bytes(2, "big")
-                payload += min_power[1].to_bytes(1, "big")
+                payload += parameter["min_power"][0].to_bytes(2, "big")
+                payload += parameter["min_power"][1].to_bytes(1, "big")
             
-            if isinstance(max_voltage, int):
-                payload += max_voltage.to_bytes(2, "big")
+            if isinstance(parameter["max_voltage"], int):
+                payload += parameter["max_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_voltage[0].to_bytes(2, "big")
-                payload += max_voltage[1].to_bytes(1, "big")
-            if isinstance(max_current, int):
-                payload += max_current.to_bytes(2, "big")
+                payload += parameter["max_voltage"][0].to_bytes(2, "big")
+                payload += parameter["max_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_current"], int):
+                payload += parameter["max_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_current[0].to_bytes(2, "big")
-                payload += max_current[1].to_bytes(1, "big")
-            if isinstance(max_power, int):
-                payload += max_power.to_bytes(2, "big")
+                payload += parameter["max_current"][0].to_bytes(2, "big")
+                payload += parameter["max_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_power"], int):
+                payload += parameter["max_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_power[0].to_bytes(2, "big")
-                payload += max_power[1].to_bytes(1, "big")
+                payload += parameter["max_power"][0].to_bytes(2, "big")
+                payload += parameter["max_power"][1].to_bytes(1, "big")
 
-            payload += energy_request.to_bytes(1, "big")
-            payload += departure_time.to_bytes(4, "big")
+            if isinstance(parameter["energy_request"], int):
+                payload += parameter["energy_request"].to_bytes(2, "big")
+                payload += b"\x00"
+            else:
+                payload += parameter["energy_request"][0].to_bytes(2, "big")
+                payload += parameter["energy_request"][1].to_bytes(1, "big")
+
+            payload += parameter["departure_time"].to_bytes(4, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_ac_charging_parameters, payload)
 
-    def v2gUpdateACChargingParameters(self, min_voltage, min_current, min_power, max_voltage, max_current, max_power):
+    def v2gUpdateACChargingParameters(self, parameter):
         """
         Updates the AC charging parameters of the EV
         """
-        if not isinstance(min_voltage, int) and not (isinstance(min_voltage, tuple) and len(min_voltage) == 2):
+        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "energy_request", "departure_time", "max_voltage", "max_current", "max_power", "soc"} <= set(parameter)):
+            raise ValueError("Missing keys in parameter dict")
+        elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(min_current, int) and not (isinstance(min_current, tuple) and len(min_current) == 2):
+        elif not isinstance(parameter["min_current"], int) and not (isinstance(parameter["min_current"], tuple) and len(parameter["min_current"]) == 2):
             raise ValueError("Parameter min_current needs to be of type int or tuple with length 2")
-        elif not isinstance(min_power, int) and not (isinstance(min_power, tuple) and len(min_power) == 2):
+        elif not isinstance(parameter["min_power"], int) and not (isinstance(parameter["min_power"], tuple) and len(parameter["min_power"]) == 2):
             raise ValueError("Parameter min_power needs to be of type int or tuple with length 2")
-        elif not isinstance(max_voltage, int) and not (isinstance(max_voltage, tuple) and len(max_voltage) == 2):
+        elif not isinstance(parameter["max_voltage"], int) and not (isinstance(parameter["max_voltage"], tuple) and len(parameter["max_voltage"]) == 2):
             raise ValueError("Parameter max_voltage needs to be of type int or tuple with length 2")
-        elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
-        elif not isinstance(max_power, int) and not (isinstance(max_power, tuple) and len(max_power) == 2):
-            raise ValueError("Parameter AAA needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["max_current"], int) and not (isinstance(parameter["max_current"], tuple) and len(parameter["max_current"]) == 2):
+            raise ValueError("Parameter max_current needs to be of type int or tuple with length 2")
+        elif not isinstance(parameter["max_power"], int) and not (isinstance(parameter["max_power"], tuple) and len(parameter["max_power"]) == 2):
+            raise ValueError("Parameter max_power needs to be of type int or tuple with length 2")
         else:
             payload = b""
-            if isinstance(min_voltage, int):
-                payload += min_voltage.to_bytes(2, "big")
+            if isinstance(parameter["min_voltage"], int):
+                payload += parameter["min_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_voltage[0].to_bytes(2, "big")
-                payload += min_voltage[1].to_bytes(1, "big")
-            if isinstance(min_current, int):
-                payload += min_current.to_bytes(2, "big")
+                payload += parameter["min_voltage"][0].to_bytes(2, "big")
+                payload += parameter["min_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_current"], int):
+                payload += parameter["min_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_current[0].to_bytes(2, "big")
-                payload += min_current[1].to_bytes(1, "big")
-            if isinstance(min_power, int):
-                payload += min_power.to_bytes(2, "big")
+                payload += parameter["min_current"][0].to_bytes(2, "big")
+                payload += parameter["min_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["min_power"], int):
+                payload += parameter["min_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += min_power[0].to_bytes(2, "big")
-                payload += min_power[1].to_bytes(1, "big")
+                payload += parameter["min_power"][0].to_bytes(2, "big")
+                payload += parameter["min_power"][1].to_bytes(1, "big")
             
-            if isinstance(max_voltage, int):
-                payload += max_voltage.to_bytes(2, "big")
+            if isinstance(parameter["max_voltage"], int):
+                payload += parameter["max_voltage"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_voltage[0].to_bytes(2, "big")
-                payload += max_voltage[1].to_bytes(1, "big")
-            if isinstance(max_current, int):
-                payload += max_current.to_bytes(2, "big")
+                payload += parameter["max_voltage"][0].to_bytes(2, "big")
+                payload += parameter["max_voltage"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_current"], int):
+                payload += parameter["max_current"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_current[0].to_bytes(2, "big")
-                payload += max_current[1].to_bytes(1, "big")
-            if isinstance(max_power, int):
-                payload += max_power.to_bytes(2, "big")
+                payload += parameter["max_current"][0].to_bytes(2, "big")
+                payload += parameter["max_current"][1].to_bytes(1, "big")
+            if isinstance(parameter["max_power"], int):
+                payload += parameter["max_power"].to_bytes(2, "big")
                 payload += b"\x00"
             else:
-                payload += max_power[0].to_bytes(2, "big")
-                payload += max_power[1].to_bytes(1, "big")
+                payload += parameter["max_power"][0].to_bytes(2, "big")
+                payload += parameter["max_power"][1].to_bytes(1, "big")
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
 
-    def v2gACChargingParameters(self, data):
+    def v2gACGetChargingParameters(self, data):
         """
         Gets the AC charging parameters
         Returns dictionary
@@ -896,28 +912,28 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return ret
 
-    def v2gSetChargingProfile(self, schedule_tuple_id, charging_profile_entries_count, start, interval, power):
+    def v2gSetChargingProfile(self, schedule):
         """
         Sets the charging profile
         """
-        if not isinstance(schedule_tuple_id, int) or schedule_tuple_id not in range(2**16):
+        if not isinstance(schedule['schedule_tuple_id'], int) or schedule['schedule_tuple_id'] not in range(2**16):
             raise ValueError("Parameter schedule_tuple_id needs to be of type int with range 0 - 65536")
-        if not isinstance(charging_profile_entries_count, int) or charging_profile_entries_count not in range(1, 24):
+        if not isinstance(schedule['charging_profile_entries_count'], int) or schedule['charging_profile_entries_count'] not in range(1, 24):
             raise ValueError("Parameter chargin_profile_entries_count needs to be of type int with range 1 - 24")
-        if start is not None and (not isinstance(start, list)):
+        if schedule['start'] is not None and (not isinstance(schedule['start'], list)):
             raise ValueError("Parameter start needs to be of type list")
-        if interval is not None and (not isinstance(interval, list)):
+        if schedule['interval'] is not None and (not isinstance(schedule['interval'], list)):
             raise ValueError("Parameter interval needs to be of type list")
-        elif power is not None and (not isinstance(power, list)):
+        elif schedule['power'] is not None and (not isinstance(schedule['power'], list)):
             raise ValueError("Parameter power needs to be of type list")
         else:
             payload = b""
-            payload += schedule_tuple_id.to_bytes(2, "big")
-            payload += charging_profile_entries_count.to_bytes(1, "big")
-            for i in range(charging_profile_entries_count):
-                payload += int(start[i]).to_bytes(4, "big")
-                payload += int(interval[i]).to_bytes(4, "big")
-                payload += int(power[i]).to_bytes(2, "big")
+            payload += schedule['schedule_tuple_id'].to_bytes(2, "big")
+            payload += schedule['charging_profile_entries_count'].to_bytes(1, "big")
+            for i in range(schedule['charging_profile_entries_count']):
+                payload += int(schedule['start'][i]).to_bytes(4, "big")
+                payload += int(schedule['interval'][i]).to_bytes(4, "big")
+                payload += int(schedule['power'][i]).to_bytes(2, "big")
                 payload += b"\x00"
 
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charging_profile, payload)
