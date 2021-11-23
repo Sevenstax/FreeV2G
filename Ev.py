@@ -65,6 +65,26 @@ class Ev():
         if hasattr(self, "whitebeet"):
             del self.whitebeet
 
+    def load(self, configDict):
+        if "ev" in configDict:
+            for key in configDict["ev"]:
+                try:
+                    if key == "evid":
+                        self.config[key] = list(bytes.fromhex(configDict["ev"][key].replace(":","")))
+                    else:
+                        self.config[key] = configDict["ev"][key]
+                except:
+                    print(key + " not in EV.config")
+                    continue
+
+        if "battery" in configDict:
+            for key in configDict["battery"]:
+                try:
+                    setattr(self.battery, key, configDict["battery"][key])
+                except:
+                    print(key + " not in ev.battery")
+                    continue
+
     def _initialize(self):
         """
         Initializes the whitebeet by setting the control pilot mode and setting the duty cycle
