@@ -8,10 +8,10 @@ class Battery():
 
         self.is_charging = False
         self.is_full = False
-        self.capacity = 50000
+        self._capacity = 50000
+        self._level = 45000 
         self.full_soc = 100
         self.bulk_soc = 100
-        self._batteryLevel = 0
         self._soc = 0
 
         self.in_voltage = 0
@@ -25,6 +25,8 @@ class Battery():
         self.max_current_AC = 0
         self.max_voltage_AC = 0
         self.min_current_AC = 0
+
+        self.setLevel(self._level)
 
     def __enter__(self):
         return self
@@ -43,32 +45,39 @@ class Battery():
         ret += "*******************\n"
         ret += "Battery\n"
         ret += "\t._last_calc_time:\t" + str(self._last_calc_time) + "\n"
-        ret += "\t.in_voltage:\t" + str(self.in_voltage) + "\n"
-        ret += "\t.in_current:\t" + str(self.in_current) + "\n"
-        ret += "\t.max_voltage:\t" + str(self.max_voltage) + "\n"
-        ret += "\t.max_current:\t" + str(self.max_current) + "\n"
-        ret += "\t.max_power:\t" + str(self.max_power) + "\n"
+        ret += "\t.in_voltage:\t\t" + str(self.in_voltage) + "\n"
+        ret += "\t.in_current:\t\t" + str(self.in_current) + "\n"
+        ret += "\t.max_voltage:\t\t" + str(self.max_voltage) + "\n"
+        ret += "\t.max_current:\t\t" + str(self.max_current) + "\n"
+        ret += "\t.max_power:\t\t" + str(self.max_power) + "\n"
         ret += "\t.target_voltage:\t" + str(self.target_voltage) + "\n"
         ret += "\t.target_current:\t" + str(self.target_current) + "\n"
-        ret += "\t.capacity:\t" + str(self.capacity) + "\n"
-        ret += "\t.full_soc:\t" + str(self.full_soc) + "\n"
-        ret += "\t._batteryLevel:\t" + str(self._batteryLevel) + "\n"
-        ret += "\t._soc:\t\t" + str(self._soc) + "\n"
-        ret += "\t.full:\t\t" + str(self.is_full) + "\n"
-        ret += "\t.charging:\t" + str(self.is_charging) + "\n"
+        ret += "\t._capacity:\t\t" + str(self._capacity) + "\n"
+        ret += "\t.full_soc:\t\t" + str(self.full_soc) + "\n"
+        ret += "\t._level:\t\t" + str(self._level) + "\n"
+        ret += "\t._soc:\t\t\t" + str(self._soc) + "\n"
+        ret += "\t.full:\t\t\t" + str(self.is_full) + "\n"
+        ret += "\t.charging:\t\t" + str(self.is_charging) + "\n"
         ret += "*******************\n"
         return ret
 
-    def setBatteryLevel(self, batteryLevel):
-        self._batteryLevel = batteryLevel
-        self._soc = int((self._batteryLevel / self.capacity) * 100)
+    def setCapacity(self, capacity):
+        self._capacity = capacity
+        self.setLevel(self._level)
 
-    def getBatteryLevel(self):
-        return self._batteryLevel
+    def getCapacity(self):
+        return self._capacity
+
+    def setLevel(self, batteryLevel):
+        self._level = batteryLevel
+        self._soc = int((self._level / self._capacity) * 100)
+
+    def getLevel(self):
+        return self._level
 
     def setSOC(self, soc):
         self._soc = soc
-        self._batteryLevel = soc / 100.0 * self.capacity
+        self._level = soc / 100.0 * self._capacity
 
     def getSOC(self):
         return self._soc
@@ -85,12 +94,12 @@ class Battery():
             if(self.is_charging == True and self._soc < self.full_soc):
                 energy = self.in_voltage * self.in_current
                 energy *= self.timestep / 1000.0 / 3600.0
-                self._batteryLevel += energy
-                self._soc = int((self._batteryLevel / self.capacity) * 100)
+                self._level += energy
+                self._soc = int((self._level / self._capacity) * 100)
 
                 # check if battery level exceeds capacity
-                if self._batteryLevel > self.capacity:
-                    self._batteryLevel = self.capacity
+                if self._level > self._capacity:
+                    self._level = self._capacity
                     self.is_full = True
                 
                 print(str(self))
