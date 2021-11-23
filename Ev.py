@@ -22,8 +22,7 @@ class Ev():
         self.config["payment_method"] = [0]
         self.config["energy_transfer_mode_count"] = 2
         self.config["energy_transfer_mode"] = [1, 4]
-        self.config["battery_capacity"] = list(int(50000).to_bytes(2, "big"))
-        self.config["battery_capacity"].append(0)
+        self.config["battery_capacity"] = self.battery.capacity
 
         self.DCchargingParams = {}
         self.DCchargingParams["min_voltage"] = 220
