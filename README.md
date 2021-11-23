@@ -141,3 +141,24 @@ SOC: 50%
 EVSE loop finished
 Goodbye!
 ```
+## EV support
+
+Run the application in EV mode by typing
+
+```console
+$ python3 Application.py "eth0" -r EV
+```
+
+## Configuration file
+
+You can set the configuration via a configuration file in json format.
+
+**Currently only EV mode supports a configuration file.**
+
+Run the application with configuration file
+
+```console
+$ python3 Application.py "eth0" -r EV -c $PATH_TO_CONFIG_FILE
+```
+
+If no path is given the configuration file defaults to ./ev.json. An example configuration can be found in ev.json.
