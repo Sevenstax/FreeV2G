@@ -493,8 +493,8 @@ class Whitebeet():
             raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
         elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list) or len(config["energy_transfer_mode"]) != config["energy_transfer_mode_count"]):
             raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
-        elif config["battery_capacity"] is not None and (not isinstance(config["battery_capacity"], list) or len(config["battery_capacity"]) != 3):
-            raise ValueError("payment_method needs to be of type list with length 3")
+        elif not isinstance(config["battery_capacity"], int) and not (isinstance(config["battery_capacity"], tuple) and len(config["battery_capacity"]) == 2):
+            raise ValueError("config battery_capacity needs to be of type int or tuple with length 2")
         else:
             payload = b""
             for i in config["evid"]:
@@ -514,9 +514,14 @@ class Whitebeet():
                     raise ValueError("values of energy_transfer_mode out of range")
                 else:
                     payload += mode.to_bytes(1, "big")
-            payload += config["battery_capacity"][0].to_bytes(1, "big")
-            payload += config["battery_capacity"][1].to_bytes(1, "big")
-            payload += config["battery_capacity"][2].to_bytes(1, "big")
+
+            if isinstance(config["battery_capacity"], int):
+                payload += config["battery_capacity"].to_bytes(2, "big")
+                payload += b"\x00"
+            else:
+                payload += config["battery_capacity"][0].to_bytes(2, "big")
+                payload += config["battery_capacity"][1].to_bytes(1, "big")
+            
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
 
     def v2gGetConfiguration(self, data):
