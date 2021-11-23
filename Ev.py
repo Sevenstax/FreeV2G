@@ -24,33 +24,15 @@ class Ev():
         self.config["battery_capacity"] = self.battery.getCapacity()
 
         self.DCchargingParams = {}
-        self.DCchargingParams["min_voltage"] = 220
-        self.DCchargingParams["min_current"] = 1
-        self.DCchargingParams["min_power"] = self.DCchargingParams["min_voltage"] * self.DCchargingParams["min_current"]
-        self.DCchargingParams["status"] = 0
-        self.DCchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
-        self.DCchargingParams["departure_time"] = 1000000
-        self.DCchargingParams["max_voltage"] = self.battery.max_voltage
-        self.DCchargingParams["max_current"] = self.battery.max_current
-        self.DCchargingParams["max_power"] = self.battery.max_power
-        self.DCchargingParams["soc"] = self.battery.getSOC()
-        self.DCchargingParams["target_voltage"] = self.battery.target_voltage
-        self.DCchargingParams["target_current"] = self.battery.target_current
-        self.DCchargingParams["full_soc"] = self.battery.full_soc
-        self.DCchargingParams["bulk_soc"] = self.battery.bulk_soc
-
         self.ACchargingParams = {}
-        self.ACchargingParams["min_voltage"] = 220
-        self.ACchargingParams["min_current"] = 1
-        self.ACchargingParams["min_power"] = self.ACchargingParams["min_voltage"] * self.ACchargingParams["min_current"]
-        self.ACchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
-        self.ACchargingParams["departure_time"] = 1000000
-        self.ACchargingParams["max_voltage"] = self.battery.max_voltage
-        self.ACchargingParams["max_current"] = self.battery.max_current
-        self.ACchargingParams["max_power"] = self.battery.max_power
+
+        self._updateChargingParameter()
 
         self.schedule = {}
         self.currentSchedule = 0
+        self.currentEnergyTransferMode = -1
+        self.currentAcMaxCurrent = 0
+        self.currentAcNominalVoltage = 0
 
     def __enter__(self):
         return self
@@ -90,6 +72,8 @@ class Ev():
                     print(key + " not in EV.config")
                     continue
 
+        self._updateChargingParameter()
+
     def _initialize(self):
         """
         Initializes the whitebeet by setting the control pilot mode and setting the duty cycle
@@ -106,10 +90,37 @@ class Ev():
         self.whitebeet.slacStart(0)
         time.sleep(2)
     
-    def _int2exp(self, value):
-        ret = list(int(value).to_bytes(2, "big"))
-        ret.append(0)
-        return ret
+    def _updateChargingParameter(self):
+        '''
+        Updates the charging parameter
+        '''
+        # DC 
+        if any((True for x in [0, 1, 2, 3] if x in self.config['energy_transfer_mode'])):
+            self.DCchargingParams["min_voltage"] = 220
+            self.DCchargingParams["min_current"] = 1
+            self.DCchargingParams["min_power"] = self.DCchargingParams["min_voltage"] * self.DCchargingParams["min_current"]
+            self.DCchargingParams["status"] = 0
+            self.DCchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
+            self.DCchargingParams["departure_time"] = 1000000
+            self.DCchargingParams["max_voltage"] = self.battery.max_voltage
+            self.DCchargingParams["max_current"] = self.battery.max_current
+            self.DCchargingParams["max_power"] = self.battery.max_power
+            self.DCchargingParams["soc"] = self.battery.getSOC()
+            self.DCchargingParams["target_voltage"] = self.battery.target_voltage
+            self.DCchargingParams["target_current"] = self.battery.target_current
+            self.DCchargingParams["full_soc"] = self.battery.full_soc
+            self.DCchargingParams["bulk_soc"] = self.battery.bulk_soc
+
+        # AC
+        if any((True for x in [4, 5] if x in self.config['energy_transfer_mode'])):
+            self.ACchargingParams["min_voltage"] = 220
+            self.ACchargingParams["min_current"] = 1
+            self.ACchargingParams["min_power"] = self.ACchargingParams["min_voltage"] * self.ACchargingParams["min_current"]
+            self.ACchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
+            self.ACchargingParams["departure_time"] = 1000000
+            self.ACchargingParams["max_voltage"] = self.battery.max_voltage
+            self.ACchargingParams["max_current"] = self.battery.max_current
+            self.ACchargingParams["max_power"] = self.battery.max_power
 
     def _waitEvseConnected(self, timeout):
         """
@@ -198,10 +209,11 @@ class Ev():
                             self.currentSchedule += 1
                         else:
                             self.whitebeet.v2gStopCharging(False)
-                    
+                            
                     if self.schedule['power'][self.currentSchedule] > (self.battery.target_current * self.battery.target_voltage):
                         self.battery.target_current = self.schedule['power'] / self.battery.target_voltage
 
+                # check SOC
                 if self.battery.getSOC() < self.battery.full_soc:
                     self.DCchargingParams["soc"] = self.battery.getSOC()
                     self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
@@ -260,7 +272,13 @@ class Ev():
         print("\tSession ID: {}".format(message['session_id'].hex()))
         print("\tEVSE ID: {}".format(message['evse_id'].hex()))
         print("\tPayment method: {}".format(message['payment_method']))
-        print("\tEnergy transfer mode: {}".format(message['energy_transfer_method']))
+        print("\tEnergy transfer mode: {}".format(message['energy_transfer_mode']))
+
+        #TODO: message[energy_transfer_mode] is always 0
+        if message['energy_transfer_mode'] in self.config['energy_transfer_mode']:
+            self.currentEnergyTransferMode = message["energy_transfer_mode"]
+        else:
+            print("\t\twrong energy transfer mode!")
 
     def _handleDCChargeParametersChanged(self, data):
         """
@@ -281,8 +299,23 @@ class Ev():
         if message["evse_status"] != 0:
             self.battery.is_charging = False
 
+        # check target voltage
         self.battery.in_voltage = message["evse_present_voltage"]
+        if self.battery.in_voltage <= self.battery.target_voltage - self.battery.target_voltage_delta \
+        or self.battery.in_voltage >= self.battery.target_voltage + self.battery.target_voltage_delta:
+            print("Target and battery voltage mismatch!")
+            self.whitebeet.v2gStopCharging(False)
+
+        # check target current
         self.battery.in_current = message["evse_present_current"]
+        if self.battery.in_current >= self.battery.max_current:
+            print("Battery current out of range!")
+            self.whitebeet.v2gStopCharging(False)
+
+        # check power conditions
+        if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
+            print("Battery power out of range!")
+            self.whitebeet.v2gStopCharging(False)
 
     def _handleACChargeParametersChanged(self, data):
         """
@@ -293,6 +326,28 @@ class Ev():
         print("\tNominal voltage: {}".format(message['nominal_voltage']))
         print("\tMaximal current: {}".format(message['max_current']))
         print("\tRCD: {}".format(message['rcd']))
+
+        # check target voltage
+        self.battery.in_voltage = message['nominal_voltage']
+        if self.battery.in_voltage >= self.battery.max_voltage_AC:
+            print("Battert voltage out of range!")
+            self.whitebeet.v2gStopCharging(False)
+
+        # check target current
+        self.currentAcMaxCurrent = message["max_current"]
+        self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.currentAcMaxCurrent
+        if self.battery.in_current >= self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
+            print("Battery current out of range!")
+            self.whitebeet.v2gStopCharging(False)
+
+        # check power conditions
+        if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
+            print("Battery power out of range!")
+            self.whitebeet.v2gStopCharging(False)
+        
+        if message["rcd"] == True:
+            self.whitebeet.v2gStopCharging(False)
+            
 
     def _handleScheduleReceived(self, data):
         """
@@ -373,13 +428,35 @@ class Ev():
         """
         print("\"Charging Ready\" received")
         self.whitebeet.v2gEvParseChargingReady(data)
-        try:
-            self.whitebeet.v2gStartCharging()
-            pass
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+
+        startCharging = False
+
+        # DC
+        if self.currentEnergyTransferMode < 4:
+            if self.battery.in_voltage < self.battery.max_voltage:
+                if self.battery.in_voltage <= self.battery.target_voltage + self.battery.target_voltage_delta \
+                and self.battery.in_voltage >= self.battery.target_voltage - self.battery.target_voltage_delta:
+                    startCharging = True
+        # AC
+        elif self.currentEnergyTransferMode < 6:
+            if self.battery.in_voltage < self.battery.max_voltage_AC:
+                if self.battery.in_voltage <= self.battery.target_voltage + self.battery.target_voltage_delta \
+                and self.battery.in_voltage >= self.battery.target_voltage - self.battery.target_voltage_delta:
+                    startCharging = True
+
+        #TODO: due to a possible bug in the whitebeet EV implementation this is commented out
+        '''# check energy transfer mode
+        if self.currentEnergyTransferMode in self.config['energy_transfer_mode']:
+            startCharging = True'''
+
+        if startCharging:
+            try:
+                self.whitebeet.v2gStartCharging()
+                pass
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
 
     def _handleChargingStarted(self, data):
         """

@@ -1000,7 +1000,7 @@ class Whitebeet():
         message['session_id'] = self.payloadReaderReadBytes(8)
         message['evse_id'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
         message['payment_method'] = self.payloadReaderReadInt(1)
-        message['energy_transfer_method'] = self.payloadReaderReadInt(1)
+        message['energy_transfer_mode'] = self.payloadReaderReadInt(1)
         self.payloadReaderFinalize()
         return message
     
