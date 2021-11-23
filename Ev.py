@@ -10,8 +10,7 @@ class Ev():
         self.whitebeet = Whitebeet(iface, mac)
 
         self.battery = Battery()
-        self.battery.capacity = 50000
-        self.battery.setBatteryLevel(50000 * 0.9)
+
         self.scheduleStartTime = time.time()
 
         self.config = {}
@@ -22,14 +21,14 @@ class Ev():
         self.config["payment_method"] = [0]
         self.config["energy_transfer_mode_count"] = 2
         self.config["energy_transfer_mode"] = [1, 4]
-        self.config["battery_capacity"] = self.battery.capacity
+        self.config["battery_capacity"] = self.battery.getCapacity()
 
         self.DCchargingParams = {}
         self.DCchargingParams["min_voltage"] = 220
         self.DCchargingParams["min_current"] = 1
         self.DCchargingParams["min_power"] = self.DCchargingParams["min_voltage"] * self.DCchargingParams["min_current"]
         self.DCchargingParams["status"] = 0
-        self.DCchargingParams["energy_request"] = self.battery.capacity * self.battery.getSOC() // 100
+        self.DCchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
         self.DCchargingParams["departure_time"] = 1000000
         self.DCchargingParams["max_voltage"] = self.battery.max_voltage
         self.DCchargingParams["max_current"] = self.battery.max_current
@@ -44,7 +43,7 @@ class Ev():
         self.ACchargingParams["min_voltage"] = 220
         self.ACchargingParams["min_current"] = 1
         self.ACchargingParams["min_power"] = self.ACchargingParams["min_voltage"] * self.ACchargingParams["min_current"]
-        self.ACchargingParams["energy_request"] = self.battery.capacity * self.battery.getSOC() // 100
+        self.ACchargingParams["energy_request"] = self.battery.getCapacity() * self.battery.getSOC() // 100
         self.ACchargingParams["departure_time"] = 1000000
         self.ACchargingParams["max_voltage"] = self.battery.max_voltage
         self.ACchargingParams["max_current"] = self.battery.max_current
@@ -65,6 +64,21 @@ class Ev():
             del self.whitebeet
 
     def load(self, configDict):
+        #TODO: change to more generic way
+        # First(!) parse battery config
+        if "battery" in configDict:
+            for key in configDict["battery"]:
+                try:
+                    if key == "capacity":
+                        self.battery.setCapacity(configDict["battery"][key])
+                    elif key == "level":
+                        self.battery.setLevel(configDict["battery"][key])
+                    else:
+                        setattr(self.battery, key, configDict["battery"][key])
+                except:
+                    print(key + " not in ev.battery")
+                    continue
+
         if "ev" in configDict:
             for key in configDict["ev"]:
                 try:
@@ -74,14 +88,6 @@ class Ev():
                         self.config[key] = configDict["ev"][key]
                 except:
                     print(key + " not in EV.config")
-                    continue
-
-        if "battery" in configDict:
-            for key in configDict["battery"]:
-                try:
-                    setattr(self.battery, key, configDict["battery"][key])
-                except:
-                    print(key + " not in ev.battery")
                     continue
 
     def _initialize(self):
