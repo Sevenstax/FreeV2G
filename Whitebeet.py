@@ -523,7 +523,7 @@ class Whitebeet():
             
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
 
-    def v2gGetConfiguration(self, data):
+    def v2gGetConfiguration(self):
         """
         Get the configuration of EV mdoe
         Returns dictionary
@@ -532,8 +532,9 @@ class Whitebeet():
         response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
         self.payloadReaderReadInt(1)
+
         ret["evid"] = self.payloadReaderReadBytes(6)
-        
+
         ret["protocol_count"] = self.payloadReaderReadInt(1)
         prot_list = []
         for i in range(ret["protocol_count"]):
@@ -541,15 +542,22 @@ class Whitebeet():
         ret["protocol"] = prot_list
         
         ret["payment_method_count"] = self.payloadReaderReadInt(1)
-        ret["payment_method"] = self.payloadReaderReadInt(1)
+        met_list = []
+        for i in range(ret["payment_method_count"]):
+            met_list.append(self.payloadReaderReadInt(1))
+        ret["payment_method"] = met_list
 
         ret["energy_transfer_method_count"] = self.payloadReaderReadInt(1)
         met_list = []
         for i in range(ret["protocol_count"]):
             met_list.append(self.payloadReaderReadInt(1))
+
         ret["energy_transfer_mode"] = met_list
-        ret["battery_capacity"] = self.payloadReaderReadInt(1)
-        ret["departure_time"] = self.payloadReaderReadInt(4)
+        
+        #TODO: wrong battery capacity
+        ret["battery_capacity"] = self.payloadReaderReadExponential()
+        #TODO: payload to short
+        #ret["departure_time"] = self.payloadReaderReadInt(4)
         self.payloadReaderFinalize()
         return ret
 
