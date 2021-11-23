@@ -479,8 +479,8 @@ class Whitebeet():
         if not ({"evid", "protocol_count", "protocols", "payment_method_count", "payment_method", "energy_transfer_mode_count", "energy_transfer_mode", "battery_capacity", "battery_capacity"} <= set(config)):
             raise ValueError("Missing keys in config dict")
 
-        if config["evid"] is not None and (not isinstance(config["evid"], list) or len(config["evid"]) != 6):
-            raise ValueError("evid needs to be of type list with length 6")
+        if config["evid"] is not None and (not isinstance(config["evid"], bytes) or len(config["evid"]) != 6):
+            raise ValueError("evid needs to be of type byte with length 6")
         elif not isinstance(config["protocol_count"], int) or not (1 <= config["protocol_count"] <= 2):
             raise ValueError("protocol_count needs to be of type int with value 1 or 2")
         elif config["protocols"] is not None and (not isinstance(config["protocols"], list) or len(config["protocols"]) != config["protocol_count"]):
@@ -497,8 +497,7 @@ class Whitebeet():
             raise ValueError("config battery_capacity needs to be of type int or tuple with length 2")
         else:
             payload = b""
-            for i in config["evid"]:
-                payload += i.to_bytes(1, "big")
+            payload += config["evid"]
             payload += config["protocol_count"].to_bytes(1, "big")
             payload += int(0).to_bytes(1, "big")
             if config["protocol_count"] == 2:

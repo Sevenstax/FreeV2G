@@ -14,7 +14,7 @@ class Ev():
         self.scheduleStartTime = time.time()
 
         self.config = {}
-        self.config["evid"] = list(bytes.fromhex(mac.replace(":","")))
+        self.config["evid"] = bytes.fromhex(mac.replace(":",""))
         self.config["protocol_count"] = 2
         self.config["protocols"] = [0, 1]
         self.config["payment_method_count"] = 1
@@ -83,7 +83,7 @@ class Ev():
             for key in configDict["ev"]:
                 try:
                     if key == "evid":
-                        self.config[key] = list(bytes.fromhex(configDict["ev"][key].replace(":","")))
+                        self.config[key] = bytes.fromhex(configDict["ev"][key].replace(":",""))
                     else:
                         self.config[key] = configDict["ev"][key]
                 except:
@@ -165,10 +165,18 @@ class Ev():
         self.whitebeet.v2gSetMode(0)
         print("Set V2G configuration")
         self.whitebeet.v2gSetConfiguration(self.config)
-        print("Set DC charging parameters")
-        self.DCchargingParams["soc"] = self.battery.getSOC()
-        self.whitebeet.v2gSetDCChargingParameters(self.DCchargingParams)
-        self.whitebeet.v2gSetACChargingParameters(self.ACchargingParams)
+
+        # DC 
+        if any((True for x in [0, 1, 2, 3] if x in self.config['energy_transfer_mode'])):
+            print("Set DC charging parameters")
+            self.DCchargingParams["soc"] = self.battery.getSOC()
+            self.whitebeet.v2gSetDCChargingParameters(self.DCchargingParams)
+
+        # AC
+        if any((True for x in [4, 5] if x in self.config['energy_transfer_mode'])):
+            print("Set AC charging parameters")      
+            self.whitebeet.v2gSetACChargingParameters(self.ACchargingParams)
+
         print("Start V2G")
         self.whitebeet.v2gStart()
         print("Change State to State C")
