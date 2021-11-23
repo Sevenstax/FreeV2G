@@ -547,9 +547,9 @@ class Whitebeet():
             met_list.append(self.payloadReaderReadInt(1))
         ret["payment_method"] = met_list
 
-        ret["energy_transfer_method_count"] = self.payloadReaderReadInt(1)
+        ret["energy_transfer_mode_count"] = self.payloadReaderReadInt(1)
         met_list = []
-        for i in range(ret["protocol_count"]):
+        for i in range(ret["energy_transfer_mode_count"]):
             met_list.append(self.payloadReaderReadInt(1))
 
         ret["energy_transfer_mode"] = met_list
