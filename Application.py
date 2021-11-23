@@ -1,5 +1,7 @@
+from binascii import Error
 import time
 import argparse
+import json
 from Evse import *
 from Ev import *
 
@@ -9,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('interface', type=str, help='This is the name of the interface where the Whitebeet is connected to (i.e. "eth0").')
     parser.add_argument('-m', '--mac', type=str, help='This is the MAC address of the ethernet interface of the Whitebeet (i.e. "{}").'.format(WHITEBBET_DEFAULT_MAC))
     parser.add_argument('-r', '--role', type=str, help='This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode')
+    parser.add_argument('-c', '--config', type=str, help='Path to configuration file. Defaults to ./ev.json', nargs='?', const="ev.json")
     args = parser.parse_args()
 
     print("Welcome to Codico Whitebeet EVSE reference implementation")
@@ -23,10 +26,18 @@ if __name__ == "__main__":
 
     if(args.role == "EV"):
         with Ev(args.interface, args.mac) as ev:
-
+            # Load configuration from json
+            if args.config != None:
+                try:
+                    with open(args.config, 'r') as configFile:
+                        config = json.load(configFile)
+                        print("EV configuration: " + str(config))
+                        ev.load(config)
+                except BaseException as err:
+                    print(f"File error: {err=}, {type(err)=}")
+            
             # Start the EVSE loop
-            #ev.whitebeet.networkConfigSetPortMirrorState(1)
-            #ev.whitebeet.v2gSetConfiguration(ev.evid, ev.protocol_count, ev.protocols, ev.payment_method_count, ev.payment_method, ev.energy_transfer_mode_count, ev.energy_transfer_mode, ev.battery_capacity)
+            ev.whitebeet.networkConfigSetPortMirrorState(1)
             ev.loop()
             print("EV loop finished")
     else:
