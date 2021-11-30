@@ -101,7 +101,7 @@ class Evse():
         print("Start V2G")
         self.whitebeet.v2gStart()
         while True:
-            id, data = self.whitebeet.v2gEvseReceiveRequest()
+            id, data = self.whitebeet.v2gReceiveRequest()
             if id == 0x80:
                 self._handleSessionStarted(data)
             elif id == 0x81:
