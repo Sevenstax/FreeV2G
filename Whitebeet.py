@@ -173,6 +173,19 @@ class Whitebeet():
             raise Warning("Less payload than expected!")
         return value
 
+    def payloadReaderReadIntSigned(self, num):
+        """
+        Helper function for parsing payload. Reads an signed integer from the payload.
+        """
+        value = 0
+        if self.payloadBytesRead + num <= self.payloadBytesLen:
+            i = self.payloadBytesRead
+            value = int.from_bytes(self.payloadBytes[i:i+num], 'big', signed=True)
+            self.payloadBytesRead = self.payloadBytesRead + num
+        else:
+            raise Warning("Less payload than expected!")
+        return value
+
     def payloadReaderReadBytes(self, num):
         """
         Helper function for parsing payload. Reads a number of bytes from the payload.
@@ -1006,16 +1019,16 @@ class Whitebeet():
         if message['type'] == 0:
             # Parse DC parameters
             message['dc'] = {}
-            message['dc']['ev_max_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+            message['dc']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_min_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_power'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_max_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_power'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['dc']['ev_max_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_min_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['dc']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_min_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
                 message['dc']['full_soc'] = self.payloadReaderReadInt(1)
             if self.payloadReaderReadInt(1) == 1:
@@ -1024,10 +1037,10 @@ class Whitebeet():
         elif message['type'] == 1:
             # Parse AC parameters
             message['ac'] = {}
-            message['ac']['energy_amount'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['ac']['ev_max_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['ac']['ev_max_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['ac']['ev_min_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+            message['ac']['energy_amount'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['ac']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['ac']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['ac']['ev_min_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
         self.payloadReaderFinalize()
         return message
 
@@ -1098,8 +1111,8 @@ class Whitebeet():
         message['type'] = self.payloadReaderReadInt(1)
         if message['type'] == 0:
             message['dc'] = {}
-            message['dc']['ev_target_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['dc']['ev_target_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+            message['dc']['ev_target_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['dc']['ev_target_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             message['dc']['soc'] = self.payloadReaderReadInt(1)
         self.payloadReaderFinalize()
         return message
@@ -1131,7 +1144,7 @@ class Whitebeet():
         message['ev_power_profile'] = []
         for i in range(self.payloadReaderReadInt(1)):
             start = self.payloadReaderReadInt(4)
-            power = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+            power = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             message['ev_power_profile'].append((start, power))
         message['type'] = self.payloadReaderReadInt(1)
         if message['type'] == 0:
@@ -1176,21 +1189,21 @@ class Whitebeet():
             # Parse DC parameters
             message['dc'] = {}
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_power'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['dc']['ev_target_voltage'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
-            message['dc']['ev_target_current'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['ev_max_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['dc']['ev_target_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
+            message['dc']['ev_target_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             message['dc']['soc'] = self.payloadReaderReadInt(1)
             message['dc']['charging_complete'] = (self.payloadReaderReadInt(1) != 0)
             if self.payloadReaderReadInt(1) != 0:
                 message['dc']['bulk_charging_complete'] = (self.payloadReaderReadInt(1) != 0)
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['remaining_time_to_full_soc'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['remaining_time_to_full_soc'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
             if self.payloadReaderReadInt(1) == 1:
-                message['dc']['remaining_time_to_bulk_soc'] = self.payloadReaderReadInt(2) * pow(10, self.payloadReaderReadInt(1))
+                message['dc']['remaining_time_to_bulk_soc'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
         if message['type'] == 1:
             # AC parameters empty
             message['ac'] = {}
