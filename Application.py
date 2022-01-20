@@ -72,6 +72,24 @@ if __name__ == "__main__":
                 "valid_until": time.time() + (48 * 60 * 60),
                 "max_power": evse.getCharger().getEvseMaxPower()
             }]
+
+            # Set the schedule
+            '''schedule = [{
+                "id": 1,
+                "tuple": [{
+                    "start": 0,
+                    "interval": 1800,
+                    "max_power": evse.getCharger().getEvseMaxPower()
+                }, {
+                    "start": 1800,
+                    "interval": 1800,
+                    "max_power": int(evse.getCharger().getEvseMaxPower() * 0.75)
+                }, {
+                    "start": 3600,
+                    "interval": 82800,
+                    "max_power": int(evse.getCharger().getEvseMaxPower() * 0.5)
+                }]
+            }]'''
             evse.setSchedule(schedule)
 
             # Start the EVSE loop
