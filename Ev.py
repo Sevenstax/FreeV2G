@@ -35,7 +35,6 @@ class Ev():
         self.currentEnergyTransferMode = -1
         self.currentAcMaxCurrent = 0
         self.currentAcNominalVoltage = 0
-        self.chargingReady = False
 
         self.state = "init"
 
@@ -215,7 +214,7 @@ class Ev():
 
         oldVal = self.whitebeet.controlPilotGetDutyCycle()
         print("ControlPilot duty cycle: " + str(oldVal))
-        while True:
+        while not (self.state == "end"):
 
             # EV state machine
             if self.state == "sessionStarting":
@@ -305,24 +304,24 @@ class Ev():
                             if(len(self.schedule['power']) > self.currentSchedule):
                                 self.currentSchedule += 1
                             else:
-                                #self.whitebeet.v2gStopCharging(False)
-                                print("out of time")
+                                self.whitebeet.v2gStopCharging(False)
+                                print("Last profile entry finished")
                                 
                         #if self.schedule['power'][self.currentSchedule] > (self.battery.target_current * self.battery.target_voltage):
-                        self.battery.target_current = self.schedule['power'][self.currentSchedule] / self.battery.target_voltage
+                        maxPower = min(self.schedule['power'][self.currentSchedule], self.battery.max_power)
+                        self.battery.target_current = maxPower // self.battery.target_voltage
 
                     # check SOC
                     if self.battery.getSOC() < self.battery.full_soc:
                         self.DCchargingParams["soc"] = self.battery.getSOC()
-                        try:
-                            pass                      
+                        try:                  
                             self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
                         except Warning as e:
                             print("Warning: {}".format(e))
                         except ConnectionError as e:
                             print("ConnectionError: {}".format(e))
 
-                    elif self.battery.getSOC() > self.battery.full_soc and self.battery.is_charging == True:
+                    elif self.battery.getSOC() >= self.battery.full_soc and self.battery.is_charging == True:
                         self.battery.is_charging = False
                         print("charging done")
                         try:                        
@@ -333,57 +332,59 @@ class Ev():
                             print("ConnectionError: {}".format(e))
 
             elif self.state == "chargingStopped":
-                self.chargingReady = False
                 self.battery.is_charging = False
-
-            elif self.state == "postChargingReady":
-                self.chargingReady = False
                 try:
+                    self.state = "waitSessionStopped"
                     self.whitebeet.v2gStopSession()
                 except Warning as e:
                     print("Warning: {}".format(e))
                 except ConnectionError as e:
                     print("ConnectionError: {}".format(e))
 
+            elif self.state == "postChargingReady":
+                pass
+
             elif self.state == "sessionStopped":
                 self.battery.is_charging = False
-                self.chargingReady = False
+                self.state = "end"
 
             # receive messages from whitebeet
-            id, data = self.whitebeet.v2gEvReceiveRequest()
-            #self.logger.log("Receiving 0x{:x}".format(id))
-            if id == 0xC3:
-                self._handleScheduleReceived(data)
-            elif id == 0xC0:
-                self._handleSessionStarted(data)
-            elif id == 0xC1:
-                self._handleDCChargeParametersChanged(data)
-            elif id == 0xC2:
-                self._handleACChargeParametersChanged(data)
-            elif id == 0xC4:
-                self._handleCableCheckReady(data)
-            elif id == 0xC5:
-                self._handleCableCheckFinished(data)
-            elif id == 0xC6:
-                self._handlePreChargingReady(data)
-            elif id == 0xC7:
-                self._handleChargingReady(data)
-            elif id == 0xC8:
-                self._handleChargingStarted(data)
-            elif id == 0xC9:
-                self._handleChargingStopped(data)
-            elif id == 0xCA:
-                self._handlePostChargingReady(data)
-            elif id == 0xCB:
-                self._handleSessionStopped(data)
-                break
-            elif id == 0xCC:
-                self._handleNotificationReceived(data)
-            elif id == 0xCD:
-                self._handleSessionError(data)
-            else:
-                print("Message ID not supported: {:02x}".format(id))
-                break
+            try:
+                id, data = self.whitebeet.v2gEvReceiveRequest()
+                #self.logger.log("Receiving 0x{:x}".format(id))
+                if id == 0xC3:
+                    self._handleScheduleReceived(data)
+                elif id == 0xC0:
+                    self._handleSessionStarted(data)
+                elif id == 0xC1:
+                    self._handleDCChargeParametersChanged(data)
+                elif id == 0xC2:
+                    self._handleACChargeParametersChanged(data)
+                elif id == 0xC4:
+                    self._handleCableCheckReady(data)
+                elif id == 0xC5:
+                    self._handleCableCheckFinished(data)
+                elif id == 0xC6:
+                    self._handlePreChargingReady(data)
+                elif id == 0xC7:
+                    self._handleChargingReady(data)
+                elif id == 0xC8:
+                    self._handleChargingStarted(data)
+                elif id == 0xC9:
+                    self._handleChargingStopped(data)
+                elif id == 0xCA:
+                    self._handlePostChargingReady(data)
+                elif id == 0xCB:
+                    self._handleSessionStopped(data)
+                elif id == 0xCC:
+                    self._handleNotificationReceived(data)
+                elif id == 0xCD:
+                    self._handleSessionError(data)
+                else:
+                    print("Message ID not supported: {:02x}".format(id))
+                    break
+            except:
+                pass
             
         self.whitebeet.controlPilotSetResistorValue(0)
         self.whitebeet.v2gStop()
@@ -489,7 +490,6 @@ class Ev():
             i += 1
 
         self.schedule = {}
-        print(message['tuple_id'])
         self.schedule["schedule_tuple_id"] = 1
         self.schedule["charging_profile_entries_count"] = message['entries_count']
         self.schedule["start"] = start
@@ -617,7 +617,6 @@ class Ev():
         print("Error code: {}".format(message['error']))
         print("\t" + errorString)
         self.battery.is_charging = False
-        self.chargingReady = False
 
     def getBattery(self):
         """
