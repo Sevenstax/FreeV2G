@@ -122,15 +122,15 @@ class Whitebeet():
                 self.controlPilotStop()
             self.framing.shut_down_interface()
 
-    def _valueToExponential(value):
+    def _valueToExponential(self, value):
         retValue = b""
         if isinstance(value, int):
             base = value
             exponent = 0
-            while(not (base == 0) and not (base % 10) == 0):
+            while(not (base == 0) and (base % 10) == 0):
                 exponent += 1
                 base = base // 10
-            print("{}: {}e{}".format(value, base, exponent))
+            #print(str(base) + "e" + str(exponent))
             retValue += base.to_bytes(2, "big")
             retValue += exponent.to_bytes(1, "big")
         else:
@@ -535,6 +535,8 @@ class Whitebeet():
                 else:
                     payload += mode.to_bytes(1, "big")
 
+            #payload += self._valueToExponential(config["battery_capacity"])
+
             if isinstance(config["battery_capacity"], int):
                 payload += config["battery_capacity"].to_bytes(2, "big")
                 payload += b"\x00"
@@ -620,76 +622,24 @@ class Whitebeet():
         else:
             payload = b""
 
-            if isinstance(parameter["min_voltage"], int):
-                payload += parameter["min_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_voltage"][0].to_bytes(2, "big")
-                payload += parameter["min_voltage"][1].to_bytes(1, "big")
+            payload += self._valueToExponential(parameter["min_voltage"])
+            payload += self._valueToExponential(parameter["min_current"])
+            payload += self._valueToExponential(parameter["min_power"])
 
-            if isinstance(parameter["min_current"], int):
-                payload += parameter["min_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_current"][0].to_bytes(2, "big")
-                payload += parameter["min_current"][1].to_bytes(1, "big")
-
-            if isinstance(parameter["min_power"], int):
-                payload += parameter["min_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_power"][0].to_bytes(2, "big")
-                payload += parameter["min_power"][1].to_bytes(1, "big")
-            
-            if isinstance(parameter["max_voltage"], int):
-                payload += parameter["max_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_voltage"][0].to_bytes(2, "big")
-                payload += parameter["max_voltage"][1].to_bytes(1, "big")
-
-            if isinstance(parameter["max_current"], int):
-                payload += parameter["max_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_current"][0].to_bytes(2, "big")
-                payload += parameter["max_current"][1].to_bytes(1, "big")
-
-            if isinstance(parameter["max_power"], int):
-                payload += parameter["max_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_power"][0].to_bytes(2, "big")
-                payload += parameter["max_power"][1].to_bytes(1, "big")
+            payload += self._valueToExponential(parameter["max_voltage"])
+            payload += self._valueToExponential(parameter["max_current"])
+            payload += self._valueToExponential(parameter["max_power"])
 
             payload += parameter["soc"].to_bytes(1, "big")
             payload += parameter["status"].to_bytes(1, "big")
 
-            if isinstance(parameter["target_voltage"], int):
-                payload += parameter["target_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["target_voltage"][0].to_bytes(2, "big")
-                payload += parameter["target_voltage"][1].to_bytes(1, "big")
-
-            if isinstance(parameter["target_current"], int):
-                payload += parameter["target_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["target_current"][0].to_bytes(2, "big")
-                payload += parameter["target_current"][1].to_bytes(1, "big")
-            print(parameter)
-            payload = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x02\x00\x04\x01\x00\x14\x02\x3c\x00\x00\x01\x01\x00\x01\x01"
+            payload += self._valueToExponential(parameter["target_voltage"])
+            payload += self._valueToExponential(parameter["target_current"])
 
             payload += parameter["full_soc"].to_bytes(1, "big")
             payload += parameter["bulk_soc"].to_bytes(1, "big")
             
-            if isinstance(parameter["energy_request"], int):
-                payload += parameter["energy_request"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["energy_request"][0].to_bytes(2, "big")
-                payload += parameter["energy_request"][1].to_bytes(1, "big")
+            payload += self._valueToExponential(parameter["energy_request"])
 
             payload += parameter["departure_time"].to_bytes(4, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_dc_charging_parameters, payload)
@@ -736,12 +686,6 @@ class Whitebeet():
 
             payload += self._valueToExponential(parameter["target_voltage"])
             payload += self._valueToExponential(parameter["target_current"])
-
-            self._printPayload(payload)
-
-            payload = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x02\x00\x04\x01\x00\x14\x02\x3c\x00\x00\x01\x01\x00\x01\x01"
-
-            self._printPayload(payload)
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
 
@@ -793,50 +737,16 @@ class Whitebeet():
             raise ValueError("Parameter departure_time needs to be of type int with a value range from 0 to 2**32")
         else:
             payload = b""
-            if isinstance(parameter["min_voltage"], int):
-                payload += parameter["min_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_voltage"][0].to_bytes(2, "big")
-                payload += parameter["min_voltage"][1].to_bytes(1, "big")
-            if isinstance(parameter["min_current"], int):
-                payload += parameter["min_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_current"][0].to_bytes(2, "big")
-                payload += parameter["min_current"][1].to_bytes(1, "big")
-            if isinstance(parameter["min_power"], int):
-                payload += parameter["min_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_power"][0].to_bytes(2, "big")
-                payload += parameter["min_power"][1].to_bytes(1, "big")
-            
-            if isinstance(parameter["max_voltage"], int):
-                payload += parameter["max_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_voltage"][0].to_bytes(2, "big")
-                payload += parameter["max_voltage"][1].to_bytes(1, "big")
-            if isinstance(parameter["max_current"], int):
-                payload += parameter["max_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_current"][0].to_bytes(2, "big")
-                payload += parameter["max_current"][1].to_bytes(1, "big")
-            if isinstance(parameter["max_power"], int):
-                payload += parameter["max_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_power"][0].to_bytes(2, "big")
-                payload += parameter["max_power"][1].to_bytes(1, "big")
 
-            if isinstance(parameter["energy_request"], int):
-                payload += parameter["energy_request"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["energy_request"][0].to_bytes(2, "big")
-                payload += parameter["energy_request"][1].to_bytes(1, "big")
+            payload += self._valueToExponential(parameter["min_voltage"])
+            payload += self._valueToExponential(parameter["min_current"])
+            payload += self._valueToExponential(parameter["min_power"])
+
+            payload += self._valueToExponential(parameter["max_voltage"])
+            payload += self._valueToExponential(parameter["max_current"])
+            payload += self._valueToExponential(parameter["max_power"])
+
+            payload += self._valueToExponential(parameter["energy_request"])
 
             payload += parameter["departure_time"].to_bytes(4, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_ac_charging_parameters, payload)
@@ -861,43 +771,14 @@ class Whitebeet():
             raise ValueError("Parameter max_power needs to be of type int or tuple with length 2")
         else:
             payload = b""
-            if isinstance(parameter["min_voltage"], int):
-                payload += parameter["min_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_voltage"][0].to_bytes(2, "big")
-                payload += parameter["min_voltage"][1].to_bytes(1, "big")
-            if isinstance(parameter["min_current"], int):
-                payload += parameter["min_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_current"][0].to_bytes(2, "big")
-                payload += parameter["min_current"][1].to_bytes(1, "big")
-            if isinstance(parameter["min_power"], int):
-                payload += parameter["min_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["min_power"][0].to_bytes(2, "big")
-                payload += parameter["min_power"][1].to_bytes(1, "big")
-            
-            if isinstance(parameter["max_voltage"], int):
-                payload += parameter["max_voltage"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_voltage"][0].to_bytes(2, "big")
-                payload += parameter["max_voltage"][1].to_bytes(1, "big")
-            if isinstance(parameter["max_current"], int):
-                payload += parameter["max_current"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_current"][0].to_bytes(2, "big")
-                payload += parameter["max_current"][1].to_bytes(1, "big")
-            if isinstance(parameter["max_power"], int):
-                payload += parameter["max_power"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += parameter["max_power"][0].to_bytes(2, "big")
-                payload += parameter["max_power"][1].to_bytes(1, "big")
+
+            payload += self._valueToExponential(parameter["min_voltage"])
+            payload += self._valueToExponential(parameter["min_current"])
+            payload += self._valueToExponential(parameter["min_power"])
+
+            payload += self._valueToExponential(parameter["max_voltage"])
+            payload += self._valueToExponential(parameter["max_current"])
+            payload += self._valueToExponential(parameter["max_power"])
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
 
@@ -987,9 +868,6 @@ class Whitebeet():
         Stops the currently active charging session after the notification Post Charging Ready has been received.
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
-        tmp = ""
-        while tmp == "":
-            tmp = input(": ")
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_session, None)
     
     def v2gEvParseSessionStarted(self, data):
@@ -2110,5 +1988,5 @@ class Whitebeet():
         sub_id_list.append(0xCB)
         sub_id_list.append(0xCC)
         sub_id_list.append(0xCD)
-        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 30)
+        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 1)
         return response.sub_id, response.payload

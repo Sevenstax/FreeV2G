@@ -4,12 +4,12 @@ class Battery():
 
     def __init__(self):
         self._last_calc_time = 0
-        self.timestep = 10000
+        self.timestep = 1000
 
         self.is_charging = False
         self.is_full = False
-        self._capacity = 20000
-        self._level = 19000 
+        self._capacity = 50000
+        self._level = 49000 
         self.full_soc = 100
         self.bulk_soc = 80
         self._soc = 0
@@ -17,10 +17,10 @@ class Battery():
         self.in_voltage = 0
         self.in_current = 0
         self.max_current = 100
-        self.max_power = 5000
+        self.max_power = 12000
         self.max_voltage = 300
-        self.target_current = 10
-        self.target_voltage = 10
+        self.target_current = 50
+        self.target_voltage = 200
         self.target_voltage_delta = 10
         self.max_current_AC = 0
         self.max_voltage_AC = 0
@@ -80,6 +80,7 @@ class Battery():
         self._level = soc / 100.0 * self._capacity
 
     def getSOC(self):
+        self._soc = int((self._level / self._capacity) * 100)
         return self._soc
 
     def tickSimulation(self):
