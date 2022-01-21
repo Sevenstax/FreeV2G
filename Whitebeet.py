@@ -127,7 +127,7 @@ class Whitebeet():
         if isinstance(value, int):
             base = value
             exponent = 0
-            while(not (base == 0) and (base % 10) == 0):
+            while(not (base == 0) and (base % 10) == 0 and exponent < 3):
                 exponent += 1
                 base = base // 10
             #print(str(base) + "e" + str(exponent))
@@ -535,14 +535,7 @@ class Whitebeet():
                 else:
                     payload += mode.to_bytes(1, "big")
 
-            #payload += self._valueToExponential(config["battery_capacity"])
-
-            if isinstance(config["battery_capacity"], int):
-                payload += config["battery_capacity"].to_bytes(2, "big")
-                payload += b"\x00"
-            else:
-                payload += config["battery_capacity"][0].to_bytes(2, "big")
-                payload += config["battery_capacity"][1].to_bytes(1, "big")
+            payload += self._valueToExponential(config["battery_capacity"])
             
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
 
