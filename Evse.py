@@ -101,7 +101,7 @@ class Evse():
         print("Start V2G")
         self.whitebeet.v2gStart()
         while True:
-            id, data = self.whitebeet.v2gReceiveRequest()
+            id, data = self.whitebeet.v2gEvseReceiveRequest()
             if id == 0x80:
                 self._handleSessionStarted(data)
             elif id == 0x81:
@@ -139,7 +139,7 @@ class Evse():
         Handle the SessionStarted notification
         """
         print("\"Session started\" received")
-        message = self.whitebeet.v2gParseSessionStarted(data)
+        message = self.whitebeet.v2gEvseParseSessionStarted(data)
         print("Protocol: {}".format(message['protocol']))
         print("Session ID: {}".format(message['session_id'].hex()))
         print("EVCC ID: {}".format(message['evcc_id'].hex()))
@@ -149,7 +149,7 @@ class Evse():
         Handle the SessionStopped notification
         """
         print("\"Session stopped\" received")
-        self.whitebeet.v2gParseSessionStopped(data)
+        self.whitebeet.v2gEvseParseSessionStopped(data)
         self.charger.stop()
 
     def _handleRequestEvseId(self, data):
@@ -157,7 +157,7 @@ class Evse():
         Handle the RequestEvseId notification
         """
         print("\"Request EVSE ID\" received")
-        message = self.whitebeet.v2gParseRequestEvseId(data)
+        message = self.whitebeet.v2gEvseParseRequestEvseId(data)
         if message['format'] == 0:
             print("No EVSE ID available")
             try:
@@ -182,7 +182,7 @@ class Evse():
         The authorization status will be requested from the user.
         """
         print("\"Request Authorization\" received")
-        message = self.whitebeet.v2gParseRequestAuthorization(data)
+        message = self.whitebeet.v2gEvseParseRequestAuthorization(data)
         timeout = int(message['timeout'] / 1000) - 1
         # Promt for authorization status
         auth_str = input("Authorize the vehicle? Type \"yes\" or \"no\" in the next {}s: ".format(timeout))
@@ -208,7 +208,7 @@ class Evse():
         Handle the DiscoveryChargeParameters notification
         """
         print("\"Request Discovery Charge Parameters\" received")
-        message = self.whitebeet.v2gParseRequestDiscoveryChargeParameters(data)
+        message = self.whitebeet.v2gEvseParseRequestDiscoveryChargeParameters(data)
         if 'dc' in message:
             print("EV maximum current: {}A".format(message['dc']['ev_max_current']))
             self.charger.setEvMaxCurrent(message['dc']['ev_max_current'])
@@ -262,7 +262,7 @@ class Evse():
         Handle the RequestSchedules notification
         """
         print("\"Request Schedules\" received")
-        message = self.whitebeet.v2gParseRequestSchedules(data)
+        message = self.whitebeet.v2gEvseParseRequestSchedules(data)
         print("Max entries: {}".format(message['max_entries']))
 
         print("Set the schedule: {}".format(self.schedule))
@@ -278,7 +278,7 @@ class Evse():
         Handle the RequestCableCheck notification
         """
         print("\"Request Cable Check Status\" received")
-        self.whitebeet.v2gParseRequestCableCheckStatus(data)
+        self.whitebeet.v2gEvseParseRequestCableCheckStatus(data)
         try:
             self.whitebeet.v2gSetDcCableCheckStatus(True)
         except Warning as e:
@@ -291,7 +291,7 @@ class Evse():
         Handle the RequestCableCheckParameters notification
         """
         print("\"Request Cable Check Parameters\" received")
-        message = self.whitebeet.v2gParseRequestCableCheckParameters(data)
+        message = self.whitebeet.v2gEvseParseRequestCableCheckParameters(data)
         if 'dc' in message:
             print("SOC: {}%".format(message['dc']['soc']))
         try:
@@ -306,7 +306,7 @@ class Evse():
         Handle the RequestPreChargeParameters notification
         """
         print("\"Request Pre Charge Parameters\" received")
-        message = self.whitebeet.v2gParseRequestPreChargeParameters(data)
+        message = self.whitebeet.v2gEvseParseRequestPreChargeParameters(data)
         code = 0
         if 'dc' in message:
             if not self.charger.isVoltageLimitExceeded(message['dc']['ev_target_voltage']):
@@ -337,7 +337,7 @@ class Evse():
         Handle the RequestStartCharging notification
         """
         print("\"Request Start Charging\" received")
-        message = self.whitebeet.v2gParseRequestStartCharging(data)
+        message = self.whitebeet.v2gEvseParseRequestStartCharging(data)
         print("Schedule ID: {}".format(message['schedule_id']))
         print("EV power profile: {}".format(message['ev_power_profile']))
         if 'dc' in message:
@@ -359,7 +359,7 @@ class Evse():
         Handle the RequestChargeLoopParameters notification
         """
         print("\"Request Charge Loop Parameters\" received")
-        message = self.whitebeet.v2gParseRequestChargeLoopParameters(data)
+        message = self.whitebeet.v2gEvseParseRequestChargeLoopParameters(data)
         if 'dc' in message:
             if 'ev_max_current' in message['dc']:
                 print("EV maximum current: {}A".format(message['dc']['ev_max_current']))
@@ -403,7 +403,7 @@ class Evse():
         Handle the RequestPostChargeParameters notification
         """
         print("\"Request Post Charge Parameters\" received")
-        message = self.whitebeet.v2gParseRequestPostChargeParameters(data)
+        message = self.whitebeet.v2gEvseParseRequestPostChargeParameters(data)
         if 'dc' in message:
             print("SOC: {}%".format(message['dc']['soc']))
         try:
@@ -418,7 +418,7 @@ class Evse():
         Handle the RequestStopCharging notification
         """
         print("\"Request Stop Charging\" received")
-        message = self.whitebeet.v2gParseRequestStopCharging(data)
+        message = self.whitebeet.v2gEvseParseRequestStopCharging(data)
         if 'dc' in message:
             if 'soc' in message['dc']:
                 print("SOC: {}%".format(message['dc']['soc']))
