@@ -264,14 +264,46 @@ class Evse():
         print("\"Request Schedules\" received")
         message = self.whitebeet.v2gEvseParseRequestSchedules(data)
         print("Max entries: {}".format(message['max_entries']))
-
-        print("Set the schedule: {}".format(self.schedule))
-        try:
-            self.whitebeet.v2gSetSchedules(0, self.schedule)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+        success = True
+        schedule_out = []
+        time_now = time.time()
+        index = 0
+        for entry in self.schedule:
+            # Check if schedule is still valid
+            if entry["valid_until"] - time_now < 0:
+                success = False
+                break
+            interval = int(entry["valid_until"] - time_now)
+            max_power = entry["max_power"]
+            # Currently only uint16 supported for interval therefore we need to split
+            if interval > 65535:
+                loop = True
+                while loop:
+                    schedule_out.append((index, 65535, max_power))
+                    interval -= 65535
+                    index += 1
+                    if interval < 65535:
+                        break
+            schedule_out.append((index, interval, max_power))
+            index += 1
+        if success:
+            # Limit to maximum number of entries sent by the EV
+            if len(schedule_out) > message['max_entries']:
+                del schedule_out[message['max_entries']:len(schedule_out)]
+            print("Set the schedule: {}".format(schedule_out))
+            try:
+                self.whitebeet.v2gSetSchedules(0, int(time_now), schedule_out)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
+        else:
+            try:
+                self.whitebeet.v2gSetSchedules(1, None, None)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
 
     def _handleRequestCableCheckStatus(self, data):
         """
@@ -339,6 +371,7 @@ class Evse():
         print("\"Request Start Charging\" received")
         message = self.whitebeet.v2gEvseParseRequestStartCharging(data)
         print("Schedule ID: {}".format(message['schedule_id']))
+        print("Time anchor: {}".format(message['time_anchor']))
         print("EV power profile: {}".format(message['ev_power_profile']))
         if 'dc' in message:
             if 'soc' in message['dc'] != 0:
@@ -459,6 +492,9 @@ class Evse():
         """
         if isinstance(schedule, list) == False:
             print("Schedule needs to be of type list")
+            return False
+        elif len(schedule) != 0 and any(isinstance(entry, dict) == False for entry in schedule):
+            print("Entries in schedule need to be of type dict")
             return False
         else:
             self.schedule = schedule
