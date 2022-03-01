@@ -8,6 +8,8 @@ class Evse():
         self.whitebeet = Whitebeet(iface, mac)
         self.charger = Charger()
         self.schedule = None
+        self.evse_config = None
+        self.charging = False
 
     def __enter__(self):
         return self
@@ -94,45 +96,106 @@ class Evse():
         """
         print("Set V2G mode to EVSE")
         self.whitebeet.v2gSetMode(1)
-        self.whitebeet.v2gSetSupportedProtocols([0, 2])
-        self.whitebeet.v2gSetPaymentOptions([0])
-        self.whitebeet.v2gSetEnergyTransferModes([0, 1, 2, 3])
+
+        self.evse_config = {
+            "evse_id_DIN": '+49*123*456*789',
+            "evse_id_ISO": 'DE*A23*E45B*78C',
+            "protocol": [0, 1], 
+            "payment_method": [0],
+            "energy_transfer_mode": [0, 1, 2, 3],
+            "certificate_installation_support": False,
+            "certificate_update_support": False,
+        }
+        self.whitebeet.v2gEvseSetConfiguration(self.evse_config)
+
+        self.dc_charging_parameters = {
+            'isolation_level': 0,
+            'min_voltage': self.charger.getEvseMinVoltage(),
+            'min_current': self.charger.getEvseMinCurrent(),
+            'max_voltage': self.charger.getEvseMaxVoltage(),
+            'max_current': self.charger.getEvseMaxCurrent(),
+            'max_power': self.charger.getEvseMaxPower(),
+            'peak_current_ripple': int(self.charger.getEvseDeltaCurrent()),
+            'status': 0
+        }
+        self.whitebeet.v2gEvseSetDcChargingParameters(self.dc_charging_parameters)
+
+        self.ac_charging_parameters = {
+            'rcd_status': 0,
+            'nominal_voltage': self.charger.getEvseMaxVoltage(),
+            'max_current': self.charger.getEvseMaxCurrent(),
+        }
+        self.whitebeet.v2gEvseSetAcChargingParameters(self.ac_charging_parameters)
+
         time.sleep(0.1)
         print("Start V2G")
-        self.whitebeet.v2gStart()
+        self.whitebeet.v2gEvseStartListen()
         while True:
-            id, data = self.whitebeet.v2gEvseReceiveRequest()
-            if id == 0x80:
+            if self.charging:
+                id, data = self.whitebeet.v2gEvseReceiveRequestSilent()
+
+                charging_parameters = {
+                    'isolation_level': 0,
+                    'present_voltage': int(self.charger.getEvsePresentVoltage()),
+                    'present_current': int(self.charger.getEvsePresentCurrent()),
+                    'max_voltage': int(self.charger.getEvseMaxVoltage()),
+                    'max_current': int(self.charger.getEvseMaxCurrent()),
+                    'max_power': int(self.charger.getEvseMaxPower()),
+                    'status': 0,
+                }
+
+                try:
+                    self.whitebeet.v2gEvseUpdateDcChargingParameters(charging_parameters)
+                except Warning as e:
+                    print("Warning: {}".format(e))
+                except ConnectionError as e:
+                    print("ConnectionError: {}".format(e))
+            else:
+                id, data = self.whitebeet.v2gEvseReceiveRequest()
+
+            if id == None or data == None:
+                pass
+            elif id == 0x80:
                 self._handleSessionStarted(data)
             elif id == 0x81:
-                self._handleSessionStopped(data)
-                break
+                self._handlePaymentSelected(data)
             elif id == 0x82:
-                self._handleRequestEvseId(data)
-            elif id == 0x83:
                 self._handleRequestAuthorization(data)
+            elif id == 0x83:
+                self._handleEnergyTransferModeSelected(data)
             elif id == 0x84:
-                self._handleRequestDiscoveryChargeParameters(data)
-            elif id == 0x85:
                 self._handleRequestSchedules(data)
+            elif id == 0x85:
+                self._handleDCChargeParametersChanged(data)
             elif id == 0x86:
-                self._handleRequestCableCheckStatus(data)
+                self._handleACChargeParametersChanged(data)
             elif id == 0x87:
-                self._handleRequestCableCheckParameters(data)
+                self._handleRequestCableCheck(data)
             elif id == 0x88:
-                self._handleRequestPreChargeParameters(data)
+                self._handlePreChargeStarted(data)
             elif id == 0x89:
                 self._handleRequestStartCharging(data)
             elif id == 0x8A:
-                self._handleRequestChargeLoopParameters(data)
-            elif id == 0x8B:
                 self._handleRequestStopCharging(data)
+            elif id == 0x8B:
+                self._handleWeldingDetectionStarted(data)
             elif id == 0x8C:
-                self._handleRequestPostChargeParameters(data)
+                self._handleSessionStopped(data)
+                break
+            elif id == 0x8D:
+                pass
+            elif id == 0x8E:
+                self._handleSessionError(data)
+            elif id == 0x8F:
+                self._handleCertificateInstallationRequested(data)
+            elif id == 0x90:
+                self._handleCertificateUpdateRequested(data)
+            elif id == 0x91:
+                self._handleMeteringReceiptStatus(data)
             else:
                 print("Message ID not supported: {:02x}".format(id))
                 break
-        self.whitebeet.v2gStop()
+        self.whitebeet.v2gEvseStopListen()
 
     def _handleSessionStarted(self, data):
         """
@@ -144,37 +207,18 @@ class Evse():
         print("Session ID: {}".format(message['session_id'].hex()))
         print("EVCC ID: {}".format(message['evcc_id'].hex()))
 
-    def _handleSessionStopped(self, data):
+    def _handlePaymentSelected(self, data):
         """
-        Handle the SessionStopped notification
+        Handle the PaymentSelected notification
         """
-        print("\"Session stopped\" received")
-        self.whitebeet.v2gEvseParseSessionStopped(data)
-        self.charger.stop()
-
-    def _handleRequestEvseId(self, data):
-        """
-        Handle the RequestEvseId notification
-        """
-        print("\"Request EVSE ID\" received")
-        message = self.whitebeet.v2gEvseParseRequestEvseId(data)
-        if message['format'] == 0:
-            print("No EVSE ID available")
-            try:
-                self.whitebeet.v2gSetEvseId(None)
-            except Warning as e:
-                print("Warning: {}".format(e))
-            except ConnectionError as e:
-                print("ConnectionError: {}".format(e))
-        else:
-            evseid = "DE*ABC*E*00001*01"
-            print("Set EVSE ID: {}".format(evseid))
-            try:
-                self.whitebeet.v2gSetEvseId(evseid)
-            except Warning as e:
-                print("Warning: {}".format(e))
-            except ConnectionError as e:
-                print("ConnectionError: {}".format(e))
+        print("\"Payment selcted\" received")
+        message = self.whitebeet.v2gEvseParsePaymentSelected(data)
+        print("Selected payment method: {}".format(message['selected_payment_method']))
+        if message['selected_payment_method'] == 1:
+            print("Contract certificate: {}".format(message['contract_certificate'].hex()))
+            print("mo_sub_ca1: {}".format(message['mo_sub_ca1'].hex()))
+            print("mo_sub_ca2: {}".format(message['mo_sub_ca2'].hex()))
+            print("EMAID: {}".format(message['emaid'].hex()))
 
     def _handleRequestAuthorization(self, data):
         """
@@ -182,14 +226,16 @@ class Evse():
         The authorization status will be requested from the user.
         """
         print("\"Request Authorization\" received")
-        message = self.whitebeet.v2gEvseParseRequestAuthorization(data)
+        message = self.whitebeet.v2gEvseParseAuthorizationStatusRequested(data)
+        print(message['timeout'])
         timeout = int(message['timeout'] / 1000) - 1
         # Promt for authorization status
         auth_str = input("Authorize the vehicle? Type \"yes\" or \"no\" in the next {}s: ".format(timeout))
+        auth_str = "yes"
         if auth_str is not None and auth_str == "yes":
             print("Vehicle was authorized by user!")
             try:
-                self.whitebeet.v2gSetAuthorizationStatus(True)
+                self.whitebeet.v2gEvseSetAuthorizationStatus(True)
             except Warning as e:
                 print("Warning: {}".format(e))
             except ConnectionError as e:
@@ -197,217 +243,197 @@ class Evse():
         else:
             print("Vehicle was NOT authorized by user!")
             try:
-                self.whitebeet.v2gSetAuthorizationStatus(False)
+                self.whitebeet.v2gEvseSetAuthorizationStatus(False)
             except Warning as e:
                 print("Warning: {}".format(e))
             except ConnectionError as e:
                 print("ConnectionError: {}".format(e))
 
-    def _handleRequestDiscoveryChargeParameters(self, data):
+    def _handleEnergyTransferModeSelected(self, data):
         """
-        Handle the DiscoveryChargeParameters notification
+        Handle the energy transfer mode selected notification
         """
-        print("\"Request Discovery Charge Parameters\" received")
-        message = self.whitebeet.v2gEvseParseRequestDiscoveryChargeParameters(data)
-        if 'dc' in message:
-            print("EV maximum current: {}A".format(message['dc']['ev_max_current']))
-            self.charger.setEvMaxCurrent(message['dc']['ev_max_current'])
-            if 'ev_min_current' in message['dc']:
-                print("EV minimum current: {}A".format(message['dc']['ev_min_current']))
-                self.charger.setEvMinCurrent(message['dc']['ev_min_current'])
-            if 'ev_max_power' in message['dc']:
-                print("EV maximum power: {}W".format(message['dc']['ev_max_power']))
-                self.charger.setEvMaxPower(message['dc']['ev_max_power'])
-            if 'ev_min_power' in message['dc']:
-                print("EV minimum power: {}W".format(message['dc']['ev_min_power']))
-                self.charger.setEvMinPower(message['dc']['ev_min_power'])
-            print("EV maximum voltage: {}V".format(message['dc']['ev_max_voltage']))
-            self.charger.setEvMaxVoltage(message['dc']['ev_max_voltage'])
-            if 'ev_min_voltage' in message['dc']:
-                print("EV minimum voltage: {}V".format(message['dc']['ev_min_voltage']))
-                self.charger.setEvMinVoltage(message['dc']['ev_min_voltage'])
-            if 'full_soc' in message['dc']:
-                print("Full SOC: {}%".format(message['dc']['full_soc']))
-            if 'bulk_soc' in message['dc']:
-                print("Bulk SOC: {}%".format(message['dc']['bulk_soc']))
-            print("SOC: {}%".format(message['dc']['soc']))
-        elif 'ac' in message:
-            print("Energy amount: {}Wh".format(message['ac']['energy_amount']))
-            self.charger.setEvMaxVoltage(message['ac']['ev_max_voltage'])
-            print("EV maximum voltage: {}V".format(message['ac']['ev_max_voltage']))
-            self.charger.setEvMaxCurrent(message['ac']['ev_max_current'])
-            print("EV maximum current: {}A".format(message['ac']['ev_max_current']))
-            self.charger.setEvMinCurrent(message['ac']['ev_min_current'])
-            print("EV minimum current: {}A".format(message['ac']['ev_min_current']))
+        print("\"Energy transfer mode selected\" received")
+        self.charging = True
+        message = self.whitebeet.v2gEvseParseEnergyTransferModeSelected(data)
 
-        if 'dc' in message:
-            isolation_level = 0
-            max_current = int(self.charger.getEvseMaxCurrent())
-            min_current = int(self.charger.getEvseMinCurrent())
-            max_voltage = int(self.charger.getEvseMaxVoltage())
-            min_voltage = int(self.charger.getEvseMinVoltage())
-            max_power = int(self.charger.getEvseMaxPower())
-            current_regulation_tolerance = None
-            peak_current_ripple = 2
-            energy_to_be_delivered = None
-            try:
-                self.whitebeet.v2gSetDcDiscoveryChargeParameters(0, isolation_level, max_current, min_current, max_voltage, min_voltage, max_power, current_regulation_tolerance, peak_current_ripple, energy_to_be_delivered)
-            except Warning as e:
-                print("Warning: {}".format(e))
-            except ConnectionError as e:
-                print("ConnectionError: {}".format(e))
+        if 'departure_time' in message:        
+            print('Departure time: {}'.format(message['departure_time']))
+
+        if 'energy_request' in message:
+            print('Energy request: {}'.format(message['energy_request']))
+
+        print('Maximum voltage: {}'.format(message['max_voltage']))
+        self.charger.setEvMaxVoltage(message['max_voltage'])
+
+        if 'min_current' in message:
+            print('Minimum current: {}'.format(message['min_current']))
+            self.charger.setEvMinCurrent(message['min_current'])
+
+        print('Maximum current: {}'.format(message['max_current']))
+        self.charger.setEvMaxCurrent(message['max_current'])
+
+        if 'max_power' in message:
+            print('Maximum power: {}'.format(message['max_power']))
+            self.charger.setEvMaxPower(message['max_power'])
+
+        print('Energy Capacity: {}'.format(message['energy_capacity']))
+
+        if 'full_soc' in message:
+            print('Full SoC: {}'.format(message['full_soc']))
+
+        if 'bulk_soc' in message:
+            print('Bulk SoC: {}'.format(message['bulk_soc']))
+
+        print('Ready: {}'.format('yes' if message['ready'] else 'no'))
+        print('Error code: {}'.format(message['error_code']))
+        print('SoC: {}'.format(message['soc']))
+
+        if 'selected_energy_transfer_mode' in message:
+            print('Selected energy transfer mode: {}'.format(message['selected_energy_transfer_mode']))
+            if not message['selected_energy_transfer_mode'] in self.evse_config['energy_transfer_mode']:
+                print('Energy transfer mode mismatch!')
+                try:
+                    self.whitebeet.v2gEvseStopCharging()
+                except Warning as e:
+                    print("Warning: {}".format(e))
+                except ConnectionError as e:
+                    print("ConnectionError: {}".format(e))
 
     def _handleRequestSchedules(self, data):
         """
         Handle the RequestSchedules notification
         """
         print("\"Request Schedules\" received")
-        message = self.whitebeet.v2gEvseParseRequestSchedules(data)
+        message = self.whitebeet.v2gEvseParseSchedulesRequested(data)
         print("Max entries: {}".format(message['max_entries']))
-
+        maxEntry = max([len(self.schedule), message['max_entries']])
         print("Set the schedule: {}".format(self.schedule))
         try:
-            self.whitebeet.v2gSetSchedules(0, self.schedule)
+            self.whitebeet.v2gEvseSetSchedules(self.schedule)
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
             print("ConnectionError: {}".format(e))
 
-    def _handleRequestCableCheckStatus(self, data):
+    def _handleDCChargeParametersChanged(self, data):
+        """
+        Handle the DCChargeParametersChanged notification
+        """
+        print("\"DC Charge Parameters Changed\" received")
+        message = self.whitebeet.v2gEvseParseDCChargeParametersChanged(data)
+
+        print("EV maximum current: {}A".format(message['max_current']))
+        self.charger.setEvMaxCurrent(message['max_current'])
+
+        print("EV maximum voltage: {}V".format(message['max_voltage']))
+        self.charger.setEvMaxVoltage(message['max_voltage'])
+
+        if 'max_power' in message:
+            print("EV maximum power: {}W".format(message['max_power']))
+            self.charger.setEvMaxPower(message['max_power'])
+
+        print('EV ready: {}'.format(message['ready']))
+        print('Error code: {}'.format(message['error_code']))
+        print("SOC: {}%".format(message['soc']))
+
+        if 'target_voltage' in message:
+            print("EV target voltage: {}V".format(message['target_voltage']))
+            self.charger.setEvTargetVoltage(message['target_voltage'])
+
+        if 'target_current' in message:
+            print("EV target current: {}A".format(message['target_current']))
+            self.charger.setEvTargetCurrent(message['target_current'])
+        
+        if 'charging_complete' in message:
+            print("Charging complete: {}".format(message['charging_complete']))
+        if 'bulk_charging_complete' in message:
+            print("Bulk charging complete: {}".format(message['bulk_charging_complete']))
+        if 'remaining_time_to_full_soc' in message:
+            print("Remaining time to full SOC: {}s".format(message['remaining_time_to_full_soc']))
+        if 'remaining_time_to_bulk_soc' in message:
+            print("Remaining time to bulk SOC: {}s".format(message['remaining_time_to_bulk_soc']))
+    
+
+        charging_parameters = {
+            'isolation_level': 0,
+            'present_voltage': int(self.charger.getEvsePresentVoltage()),
+            'present_current': int(self.charger.getEvsePresentCurrent()),
+            'max_voltage': int(self.charger.getEvseMaxVoltage()),
+            'max_current': int(self.charger.getEvseMaxCurrent()),
+            'max_power': int(self.charger.getEvseMaxPower()),
+            'status': 0,
+        }
+
+        try:
+            self.whitebeet.v2gEvseUpdateDcChargingParameters(charging_parameters)
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))
+
+    def _handleACChargeParametersChanged(self, data):
+        """
+        Handle the ACChargeParametersChanged notification
+        """
+        print("\"AC Charge Parameters Changed\" received")
+        message = self.whitebeet.v2gEvseParseACChargeParametersChanged(data)
+
+        print("EV maximum voltage: {}V".format(message['max_voltage']))
+        self.charger.setEvMaxVoltage(message['max_voltage'])
+
+        print("EV minimum current: {}W".format(message['min_current']))
+        self.charger.setEvMinCurrent(message['min_current'])
+
+        print("EV maximum current: {}A".format(message['max_current']))
+        self.charger.setEvMaxCurrent(message['max_current'])
+
+        print("Energy amount: {}A".format(message['energy_amount']))    
+
+        charging_parameters = {
+            'rcd_status': 0,
+            'max_current': int(self.charger.getEvseMaxCurrent()),
+        }
+
+        try:
+            self.whitebeet.v2gEvseUpdateAcChargingParameters(charging_parameters)
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))
+
+    def _handleRequestCableCheck(self, data):
         """
         Handle the RequestCableCheck notification
         """
         print("\"Request Cable Check Status\" received")
-        self.whitebeet.v2gEvseParseRequestCableCheckStatus(data)
+        self.whitebeet.v2gEvseParseCableCheckRequested(data)
         try:
-            self.whitebeet.v2gSetDcCableCheckStatus(True)
+            self.whitebeet.v2gEvseSetCableCheckFinished(True)
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
             print("ConnectionError: {}".format(e))
 
-    def _handleRequestCableCheckParameters(self, data):
+    def _handlePreChargeStarted(self, data):
         """
-        Handle the RequestCableCheckParameters notification
+        Handle the PreChargeStarted notification
         """
-        print("\"Request Cable Check Parameters\" received")
-        message = self.whitebeet.v2gEvseParseRequestCableCheckParameters(data)
-        if 'dc' in message:
-            print("SOC: {}%".format(message['dc']['soc']))
-        try:
-            self.whitebeet.v2gSetDcCableCheckParameters(0, 1)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
-
-    def _handleRequestPreChargeParameters(self, data):
-        """
-        Handle the RequestPreChargeParameters notification
-        """
-        print("\"Request Pre Charge Parameters\" received")
-        message = self.whitebeet.v2gEvseParseRequestPreChargeParameters(data)
-        code = 0
-        if 'dc' in message:
-            if not self.charger.isVoltageLimitExceeded(message['dc']['ev_target_voltage']):
-                print("EV target voltage: {}V".format(message['dc']['ev_target_voltage']))
-                self.charger.setEvTargetVoltage(message['dc']['ev_target_voltage'])
-            else:
-                print("EV target voltage of {}V exceeds charger limit of {}V".format(message['dc']['ev_target_voltage'], self.charger.getEvseMaxVoltage()))
-                code = 1
-            if not self.charger.isCurrentLimitExceeded(message['dc']['ev_target_current']):
-                print("EV target current: {}A".format(message['dc']['ev_target_current']))
-                self.charger.setEvTargetCurrent(message['dc']['ev_target_current'])
-            else:
-                print("EV target current of {}A exceeds charger limit of {}A".format(message['dc']['ev_target_current'], self.charger.getEvseMaxCurrent()))
-                code = 1
-            ev_power = message['dc']['ev_target_voltage'] * message['dc']['ev_target_current']
-            if self.charger.isPowerLimitExceeded(ev_power):
-                print("EV power of {}W exceeds charger limit of {}W".format(ev_power, self.charger.getEvseMaxPower()))
-            print("SOC: {}%".format(message['dc']['soc']))
-        try:
-            self.whitebeet.v2gSetDcPreChargeParameters(code, 1, int(self.charger.getEvsePresentVoltage()))
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+        print("\"Pre Charge Started\" received")
+        self.whitebeet.v2gEvseParsePreChargeStarted(data)
+        self.charger.start()
 
     def _handleRequestStartCharging(self, data):
         """
-        Handle the RequestStartCharging notification
+        Handle the StartChargingRequested notification
         """
-        print("\"Request Start Charging\" received")
-        message = self.whitebeet.v2gEvseParseRequestStartCharging(data)
-        print("Schedule ID: {}".format(message['schedule_id']))
-        print("EV power profile: {}".format(message['ev_power_profile']))
-        if 'dc' in message:
-            if 'soc' in message['dc'] != 0:
-                print("SOC: {}%".format(message['dc']['soc']))
-            if 'charging_complete' in message['dc']:
-                print("Charging complete: {}".format(message['dc']['charging_complete']))
-            if 'bulk_charging_complete' in message['dc']:
-                print("Bulk charging complete: {}".format(message['dc']['bulk_charging_complete']))
+        print("\"Start Charging Requested\" received")
+        message = self.whitebeet.v2gEvseParseStartChargingRequested(data)
+        print("Schedule tuple ID: {}".format(message['schedule_tuple_id']))
+        print("Charging profiles: {}".format(message['charging_profiles']))
+        self.charger.start()
         try:
-            self.whitebeet.v2gSetDcStartChargingStatus(0, 1)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
-
-    def _handleRequestChargeLoopParameters(self, data):
-        """
-        Handle the RequestChargeLoopParameters notification
-        """
-        print("\"Request Charge Loop Parameters\" received")
-        message = self.whitebeet.v2gEvseParseRequestChargeLoopParameters(data)
-        if 'dc' in message:
-            if 'ev_max_current' in message['dc']:
-                print("EV maximum current: {}A".format(message['dc']['ev_max_current']))
-                self.charger.setEvMaxCurrent(message['dc']['ev_max_current'])
-            if 'ev_max_voltage' in message['dc']:
-                print("EV maximum voltage: {}V".format(message['dc']['ev_max_voltage']))
-                self.charger.setEvMaxVoltage(message['dc']['ev_max_voltage'])
-            if 'ev_max_power' in message['dc']:
-                print("EV maximum power: {}W".format(message['dc']['ev_max_power']))
-                self.charger.setEvMaxPower(message['dc']['ev_max_power'])
-            print("EV target voltage: {}V".format(message['dc']['ev_target_voltage']))
-            self.charger.setEvTargetVoltage(message['dc']['ev_target_voltage'])
-            print("EV target current: {}A".format(message['dc']['ev_target_current']))
-            self.charger.setEvTargetCurrent(message['dc']['ev_target_current'])
-            print("SOC: {}%".format(message['dc']['soc']))
-            print("Charging complete: {}".format(message['dc']['charging_complete']))
-            if 'bulk_charging_complete' in message['dc']:
-                print("Bulk charging complete: {}".format(message['dc']['bulk_charging_complete']))
-            if 'remaining_time_to_full_soc' in message['dc']:
-                print("Remaining time to full SOC: {}s".format(message['dc']['remaining_time_to_full_soc']))
-            if 'remaining_time_to_bulk_soc' in message['dc']:
-                print("Remaining time to bulk SOC: {}s".format(message['dc']['remaining_time_to_bulk_soc']))
-        present_voltage = int(self.charger.getEvsePresentVoltage())
-        present_current = int(self.charger.getEvsePresentCurrent())
-        present_power = int(present_current * present_voltage)
-        max_current = int(self.charger.getEvseMaxCurrent())
-        max_voltage = int(self.charger.getEvseMaxVoltage())
-        max_power = int(self.charger.getEvseMaxPower())
-        max_current_reached = present_current >= max_current
-        max_voltage_reached = present_voltage >= max_voltage
-        max_power_reached = present_power >= max_power
-        try:
-            self.whitebeet.v2gSetDcChargeLoopParameters(0, 1, present_voltage, present_current, max_current, max_voltage, max_power, max_current_reached, max_voltage_reached, max_power_reached)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
-
-    def _handleRequestPostChargeParameters(self, data):
-        """
-        Handle the RequestPostChargeParameters notification
-        """
-        print("\"Request Post Charge Parameters\" received")
-        message = self.whitebeet.v2gEvseParseRequestPostChargeParameters(data)
-        if 'dc' in message:
-            print("SOC: {}%".format(message['dc']['soc']))
-        try:
-            self.whitebeet.v2gSetDcPostChargeParameters(0, 1, int(self.charger.getEvsePresentVoltage()))
+            self.whitebeet.v2gEvseStartCharging()
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
@@ -418,21 +444,150 @@ class Evse():
         Handle the RequestStopCharging notification
         """
         print("\"Request Stop Charging\" received")
-        message = self.whitebeet.v2gEvseParseRequestStopCharging(data)
-        if 'dc' in message:
-            if 'soc' in message['dc']:
-                print("SOC: {}%".format(message['dc']['soc']))
-            if 'charging_complete' in message['dc']:
-                print("Charging complete: {}".format(message['dc']['charging_complete']))
-            if 'bulk_charging_complete' in message['dc']:
-                print("Bulk charging complete: {}".format(message['dc']['bulk_charging_complete']))
+        message = self.whitebeet.v2gEvseParseStopChargingRequested(data)
+        print('Timeout: {}'.format(message['timeout']))
+        print('Timeout: {}'.format('yes' if message['renegotiation'] else 'no'))
         self.charger.stop()
         try:
-            self.whitebeet.v2gSetDcStopChargingStatus(0, 1)
+            self.whitebeet.v2gEvseStopCharging()
         except Warning as e:
             print("Warning: {}".format(e))
         except ConnectionError as e:
             print("ConnectionError: {}".format(e))
+
+    def _handleWeldingDetectionStarted(self, data):
+        """
+        Handle the WeldingDetectionStarted notification
+        """
+        print("\"Welding Detection Started\" received")
+        self.whitebeet.v2gEvseParseWeldingDetectionStarted(data)
+
+    def _handleSessionStopped(self, data):
+        """
+        Handle the SessionStopped notification
+        """
+        self.charging = False
+        print("\"Session stopped\" received")
+        message = self.whitebeet.v2gEvseParseSessionStopped(data)
+        print('Closure type: {}'.format(message['closure_type']))
+        self.charger.stop()
+
+    def _handleSessionError(self, data):
+        """
+        Handle the SessionError notification
+        """
+        print("\"Session Error\" received")
+        self.charging = False
+        message = self.whitebeet.v2gEvseParseSessionError(data)
+        self.charger.stop()
+
+        error_messages = {
+            '0': 'Unspecified',
+            '1': 'Sequence error',
+            '2': 'Service ID invalid',
+            '3': 'Unknown session',
+            '4': 'Service selection invalid',
+            '5': 'Payment selection invalid',
+            '6': 'Certificate expired',
+            '7': 'Signature Error',
+            '8': 'No certificate available',
+            '9': 'Certificate chain error',
+            '10': 'Challenge invalid',
+            '11': 'Contract canceled',
+            '12': 'Wrong charge parameter',
+            '13': 'Power delivery not applied',
+            '14': 'Tariff selection invalid',
+            '15': 'Charging profile invalid',
+            '16': 'Present voltage too low',
+            '17': 'Metering signature not valid',
+            '18': 'No charge service selected',
+            '19': 'Wrong energy transfer type',
+            '20': 'Contactor error',
+            '21': 'Certificate not allowed at this EVSE',
+            '22': 'Certificate revoked',
+        }
+
+        print('Session error: {}: {}'.format(message['error_code'], error_messages[message['error_code']]))
+        try:
+            self.whitebeet.v2gEvseStopCharging()
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))
+
+    def _handleCertificateInstallationRequested(self, data):
+        """
+        Handle the CertificateInstallationRequested notification
+        """
+        print("\"Certificate Installation Requested\" received")
+        message = self.whitebeet.v2gEvseParseCertificateInstallationRequested(data)
+        print('Timeout: {}'.format(message['timeout']))
+        print('EXI request: {}'.format(message['exi_request']))
+
+        status = 2
+        certificationResponse = []
+
+        '''startTime = time.time_ns() / 1000
+        
+        if self.certificateApi.isRunning:
+            try:
+                certificationResponse = self.certificateApi.generateResponse(message['exi_request'])
+                currentTime = time.time_ns() / 1000
+                status = 0
+            except (Exception, KeyboardInterrupt):
+                self.certificateApi.terminateAllProcesses()
+        
+        if currentTime > (startTime + message['timeout']):
+            status = 1
+            certificationResponse = []
+
+        try:
+            self.whitebeet.v2gEvseSetCertificateInstallationAndUpdateResponse(status, certificationResponse)
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))'''
+
+    def _handleCertificateUpdateRequested(self, data):
+        """
+        Handle the CertificateUpdateRequested notification
+        """
+        print("\"Certificate Update Requested\" received")
+        message = self.whitebeet.v2gEvseParseCertificateUpdateRequested(data)
+        print('Timeout: {}'.format(message['timeout']))
+        print('EXI request: {}'.format(message['exi_request']))
+
+        status = 2
+        certificationResponse = []
+
+        '''startTime = time.time_ns() / 1000
+        
+        if self.certificateApi.isRunning:
+            try:
+                certificationResponse = self.certificateApi.generateResponse(message['exi_request'])
+                currentTime = time.time_ns() / 1000
+                status = 0
+            except (Exception, KeyboardInterrupt):
+                self.certificateApi.terminateAllProcesses()
+        
+        if currentTime > (startTime + message['timeout']):
+            status = 1
+            certificationResponse = []
+
+        try:
+            self.whitebeet.v2gEvseSetCertificateInstallationAndUpdateResponse(status, certificationResponse)
+        except Warning as e:
+            print("Warning: {}".format(e))
+        except ConnectionError as e:
+            print("ConnectionError: {}".format(e))'''
+            
+    def _handleMeteringReceiptStatus(self, data):
+        """
+        Handle the MeteringReceiptStatus notification
+        """
+        print("\"Metering Receipt Status\" received")
+        message = self.whitebeet.v2gEvseParseMeteringReceiptStatus(data)
+        print('Metering receipt status: {}'.format('verified' if message['status'] == True else 'not verified'))
 
     def getCharger(self):
         """
@@ -456,8 +611,8 @@ class Evse():
         """
         Sets the schedule. This schedule will be used when the whitebeet requests this data
         """
-        if isinstance(schedule, list) == False:
-            print("Schedule needs to be of type list")
+        if isinstance(schedule, dict) == False:
+            print("Schedule needs to be of type dict")
             return False
         else:
             self.schedule = schedule

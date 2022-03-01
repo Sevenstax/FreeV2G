@@ -1,3 +1,5 @@
+from distutils.command.config import config
+from encodings import utf_8
 from multiprocessing import Value
 import time
 import struct
@@ -51,43 +53,44 @@ class Whitebeet():
         self.v2g_sub_stop = 0x43
 
         # EV sub IDs
-        self.v2g_sub_set_configuration = 0xA0
-        self.v2g_sub_get_configuration = 0xA1
-        self.v2g_sub_set_dc_charging_parameters = 0xA2
-        self.v2g_sub_update_dc_charging_parameters = 0xA3
-        self.v2g_sub_get_dc_charging_parameters = 0xA4
-        self.v2g_sub_set_ac_charging_parameters = 0xA5
-        self.v2g_sub_update_ac_charging_parameters = 0xA6
-        self.v2g_sub_get_ac_charging_parameters = 0xA7
-        self.v2g_sub_set_charging_profile = 0xA8
-        self.v2g_sub_start_session = 0xA9
-        self.v2g_sub_start_cable_check = 0xAA
-        self.v2g_sub_start_pre_charging = 0xAB
-        self.v2g_sub_start_charging = 0xAC
-        self.v2g_sub_stop_charging = 0xAD
-        self.v2g_sub_stop_session = 0xAE
-        
+        self.v2g_sub_ev_set_configuration = 0xA0
+        self.v2g_sub_ev_get_configuration = 0xA1
+        self.v2g_sub_ev_set_dc_charging_parameters = 0xA2
+        self.v2g_sub_ev_update_dc_charging_parameters = 0xA3
+        self.v2g_sub_ev_get_dc_charging_parameters = 0xA4
+        self.v2g_sub_ev_set_ac_charging_parameters = 0xA5
+        self.v2g_sub_ev_update_ac_charging_parameters = 0xA6
+        self.v2g_sub_ev_get_ac_charging_parameters = 0xA7
+        self.v2g_sub_ev_set_charging_profile = 0xA8
+        self.v2g_sub_ev_start_session = 0xA9
+        self.v2g_sub_ev_start_cable_check = 0xAA
+        self.v2g_sub_ev_start_pre_charging = 0xAB
+        self.v2g_sub_ev_start_charging = 0xAC
+        self.v2g_sub_ev_stop_charging = 0xAD
+        self.v2g_sub_ev_stop_session = 0xAE
+       
 
         # EVSE sub IDs
-        self.v2g_sub_set_supported_protocols = 0x60
-        self.v2g_sub_get_supported_protocols = 0x61
-        self.v2g_sub_set_sdp_config = 0x62
-        self.v2g_sub_get_sdp_config = 0x63
-        self.v2g_sub_set_payment_options = 0x64
-        self.v2g_sub_get_payment_options = 0x65
-        self.v2g_sub_set_energy_transfer_modes = 0x66
-        self.v2g_sub_get_energy_transfer_modes = 0x67
-        self.v2g_sub_set_evseid = 0x68
-        self.v2g_sub_set_authorization_status = 0x69
-        self.v2g_sub_set_discovery_charge_params = 0x6A
-        self.v2g_sub_set_schedules = 0x6B
-        self.v2g_sub_set_cable_check_status = 0x6C
-        self.v2g_sub_set_cable_check_params = 0x6D
-        self.v2g_sub_set_pre_charge_params = 0x6E
-        self.v2g_sub_set_start_charging_status = 0x6F
-        self.v2g_sub_set_charge_loop_params = 0x70
-        self.v2g_sub_set_stop_charging_status = 0x71
-        self.v2g_sub_set_post_charge_params = 0x72
+        self.v2g_sub_evse_set_configuration = 0x60
+        self.v2g_sub_evse_get_configuration = 0x61
+        self.v2g_sub_evse_set_dc_charging_parameters = 0x62
+        self.v2g_sub_evse_update_dc_charging_parameters = 0x63
+        self.v2g_sub_evse_get_dc_charging_parameters = 0x64
+        self.v2g_sub_evse_set_ac_charging_parameters = 0x65
+        self.v2g_sub_evse_update_ac_charging_parameters = 0x66
+        self.v2g_sub_evse_get_ac_charging_parameters = 0x67
+        self.v2g_sub_evse_set_sdp_config = 0x68
+        self.v2g_sub_evse_get_sdp_config = 0x69
+        self.v2g_sub_evse_start_listen = 0x6A
+        self.v2g_sub_evse_set_authorization_status = 0x6B
+        self.v2g_sub_evse_set_schedules = 0x6C
+        self.v2g_sub_evse_set_cable_check_finished = 0x6D
+        self.v2g_sub_evse_start_charging = 0x6E
+        self.v2g_sub_evse_stop_charging = 0x6F
+        self.v2g_sub_evse_stop_listen = 0x70
+        self.v2g_sub_evse_set_cable_certificate_installation_and_update_response = 0x73
+        self.v2g_sub_evse_set_meter_receipt = 0x74
+        self.v2g_sub_evse_send_notification = 0x75
 
         # Initialization of the framing interface
         self.framing = FramingInterface()
@@ -98,7 +101,6 @@ class Whitebeet():
             self.framing.initialize_framing()
             log("iface: {}, mac: {}".format(iface, mac))
             self.framing.clear_backlog()
-            self.v2gStop()
             self.slacStop()
             self.controlPilotStop()
         except:
@@ -117,7 +119,7 @@ class Whitebeet():
     def _shutdown(self):
         if self.framing.isInitialized() == True:
             if self.connectionError == False:
-                self.v2gStop()
+                self.v2gEvseStopListen()
                 self.slacStop()
                 self.controlPilotStop()
             self.framing.shut_down_interface()
@@ -130,7 +132,6 @@ class Whitebeet():
             while(not (base == 0) and (base % 10) == 0 and exponent < 3):
                 exponent += 1
                 base = base // 10
-            #print(str(base) + "e" + str(exponent))
             retValue += base.to_bytes(2, "big")
             retValue += exponent.to_bytes(1, "big")
         else:
@@ -193,6 +194,14 @@ class Whitebeet():
                 return response
         except AssertionError as error:
             raise TimeoutError("We did not receive a frame before the timeout of {}s".format(timeout))
+
+    def _receiveSilent(self, mod_id, sub_id, req_id, timeout):
+        """
+        Try to receive a message with the given parameters until the timeout is reached.
+        Does not raise an assertion if no frame is received within timeout.
+        """
+        response = self.framing.receive_next_frame(filter_mod=mod_id, filter_sub=sub_id, filter_req_id=req_id, noisy_timeout=False, timeout=timeout)
+        return response
 
     def _printPayload(self, payload):
             print("Length of payload: " + str(len(payload)))
@@ -505,7 +514,7 @@ class Whitebeet():
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop, None)
 
     # EV 
-    def v2gSetConfiguration(self, config):
+    def v2gEvSetConfiguration(self, config):
         """
         Sets the configuration for EV mode
         """
@@ -549,16 +558,16 @@ class Whitebeet():
 
             payload += self._valueToExponential(config["battery_capacity"])
             
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_configuration, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_configuration, payload)
 
-    def v2gGetConfiguration(self):
+    def v2gEvGetConfiguration(self):
         """
         Get the configuration of EV mdoe
         Returns dictionary
         """
         
         ret = {}
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_configuration, None)
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
         self.payloadReaderReadInt(1)
 
@@ -647,7 +656,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["energy_request"])
 
             payload += parameter["departure_time"].to_bytes(4, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_dc_charging_parameters, payload)
 
     def v2gUpdateDCChargingParameters(self, parameter):
         """
@@ -692,7 +701,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["target_voltage"])
             payload += self._valueToExponential(parameter["target_current"])
 
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_dc_charging_parameters, payload)
 
     def v2gGetDCChargingParameters(self, data):
         """
@@ -700,7 +709,7 @@ class Whitebeet():
         Returns dictionary
         """
         ret = {}
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_dc_charging_parameters, None)
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_get_dc_charging_parameters, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
         self.payloadReaderReadInt(1)
         ret["min_voltage"] = self.payloadReaderReadBytes(3)
@@ -754,7 +763,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["energy_request"])
 
             payload += parameter["departure_time"].to_bytes(4, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_ac_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_ac_charging_parameters, payload)
 
     def v2gUpdateACChargingParameters(self, parameter):
         """
@@ -785,7 +794,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["max_current"])
             payload += self._valueToExponential(parameter["max_power"])
 
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_dc_charging_parameters, payload)
 
     def v2gACGetChargingParameters(self, data):
         """
@@ -793,7 +802,7 @@ class Whitebeet():
         Returns dictionary
         """
         ret = {}
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_dc_charging_parameters, None)
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_get_dc_charging_parameters, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
         self.payloadReaderReadInt(1)
         ret["min_voltage"] = self.payloadReaderReadBytes(3)
@@ -831,31 +840,31 @@ class Whitebeet():
                 payload += int(schedule['power'][i]).to_bytes(2, "big")
                 payload += b"\x00"
         print(schedule)
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charging_profile, payload)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_charging_profile, payload)
 
     def v2gStartSession(self):
         """
         Starts a new charging session
         """        
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_session, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_start_session, None)
 
     def v2gStartCableCheck(self):
         """
         Starts the cable check after notification Cable Check Ready has been reveived
         """
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_cable_check, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_start_cable_check, None)
 
     def v2gStartPreCharging(self):
         """
         Starts the pre charging after notification Pre Charging Ready has been reveived
         """
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_pre_charging, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_start_pre_charging, None)
 
     def v2gStartCharging(self):
         """
         Starts the  charging after notification Charging Ready has been reveived
         """
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_start_charging, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_start_charging, None)
 
     def v2gStopCharging(self, renegotiation):
         """
@@ -866,14 +875,14 @@ class Whitebeet():
         else:
             payload = b""
             payload += renegotiation.to_bytes(1, "big")
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_charging, payload)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_stop_charging, payload)
 
     def v2gStopSession(self):
         """
         Stops the currently active charging session after the notification Post Charging Ready has been received.
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
-        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop_session, None)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_stop_session, None)
     
     def v2gEvParseSessionStarted(self, data):
         """
@@ -1069,560 +1078,649 @@ class Whitebeet():
 
     # EV
 
-    def v2gSetSupportedProtocols(self, prot_list):
+    def v2gEvseSetConfiguration(self, configuration):
         """
-        Sets the supported protocols
-        0: DIN70121-2:2012, 2: ISO15118-2:2014
+        Sets the configuration
         """
-        prot_allowed = [0, 2]
-        if not isinstance(prot_list, list):
-            raise ValueError("Protocol list needs to be of type list")
-        elif len(prot_list) == 0:
-            raise ValueError("Protocol list is empty")
-        elif len(prot_list) != len(set(prot_list)):
-            raise ValueError("Protocol list needs to have unique values")
-        elif any(i not in prot_allowed for i in prot_list):
-            raise ValueError("Element in protocol list {} not in valid range {}".format(prot_list, prot_allowed))
+        if not ({"evse_id_DIN", "evse_id_ISO", "protocol", "payment_method", "payment_method", "certificate_installation_support", "certificate_update_support", "energy_transfer_mode"} <= set(configuration)):
+            raise ValueError("Missing keys in config dict")
+
+        if not ('evse_id_DIN' in configuration or isinstance(configuration['evse_id_DIN'],str) or len(configuration['evse_id_DIN']) <= 32):
+            raise ValueError("evse_id_DIN needs to be of type str with maximum length 32")
+        elif not ('evse_id_ISO' in configuration or isinstance(configuration['evse_id_ISO'],str) or len(configuration['evse_id_ISO']) <= 38):
+            raise ValueError("evse_id_ISO needs to be of type str with maximum length 38")
+        elif not ('protocol' in configuration  or isinstance(configuration['protocol'],list) or len(configuration['protocol']) in [1,2]):
+            raise ValueError("protocol needs to be of type list with length between 1 and 2")
+        elif not ('payment_method' in configuration or isinstance(configuration['payment_method'],list) or len(configuration['payment_method']) in [1,2]):
+            raise ValueError("payment_method needs to be of type list with length between 1 and 2")
+        elif not ('energy_transfer_mode' in configuration or isinstance(configuration['energy_transfer_mode'],list) or len(configuration['energy_transfer_mode']) in range(6)):
+            raise ValueError("energy_transfer_mode needs to be of type list with length between 1 and 6")
+        elif 'certificate_installation_support' in configuration and not isinstance(configuration['certificate_installation_support'], bool):
+            raise ValueError("certificate_installation_support needs to be of type bool")
+        elif 'certificate_update_support' in configuration and not isinstance(configuration['certificate_update_support'], bool):
+            raise ValueError("certificate_update_support needs to be of type bool")
         else:
-            payload = len(prot_list).to_bytes(1, "big")
-            for prot in prot_list:
-                payload += prot.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_supported_protocols, payload)
+            
+            payload = b''
+            
+            payload += len(configuration['evse_id_DIN']).to_bytes(1, 'big')
+            payload += bytes(configuration['evse_id_DIN'], "utf-8")
+            payload += len(configuration['evse_id_ISO']).to_bytes(1, 'big')
+            payload += bytes(configuration['evse_id_ISO'], "utf-8")
 
-    def v2gGetSupportedProtocols(self):
+            payload += len(configuration['protocol']).to_bytes(1, 'big')
+            for val in configuration['protocol']:
+                payload += val.to_bytes(1, "big")
+
+            payload += len(configuration['payment_method']).to_bytes(1, 'big')
+            for val in configuration['payment_method']:
+                payload += val.to_bytes(1, "big")
+
+            payload += len(configuration['energy_transfer_mode']).to_bytes(1, 'big')
+            for val in configuration['energy_transfer_mode']:
+                payload += val.to_bytes(1, "big")
+
+            if 'certificate_installation_support' in configuration:
+                payload += b'\x01' if configuration['certificate_installation_support'] == True else b'\x00'
+            else:
+                payload += b'\x00'
+
+            if 'certificate_update_support' in configuration:
+                payload += b'\x01' if configuration['certificate_update_support'] == True else b'\x00'
+            else:
+                payload += b'\x00'
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_configuration, payload)
+
+    def v2gEvseGetConfiguration(self):
         """
-        Returns the list of supported protocols.
-        0: DIN70121-2:2012, 2: ISO15118-2:2014
+        Sets the configuration
         """
-        prot_list = []
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_supported_protocols, None)
+        
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
-        for i in range(self.payloadReaderReadInt(1)):
-            prot_list.append(self.payloadReaderReadInt(1))
-        self.payloadReaderFinalize()
-        return prot_list
+        
+        code = self.payloadReaderReadBytes(1)
+        ret['code'] = code
+        ret['evse_id_din'] = None
+        ret['evse_id_iso'] = None
+        ret['evse_protocols'] = None
+        ret['evse_payment_method'] = None
+        ret['evse_certification_installation_support'] = None
+        ret['evse_certification_update_support'] = None
+        ret['evse_energy_transfer_mode'] = None
 
-    def v2gSetSdpConfig(self, unsecure_port, secure_port):
+        if code == b'\x00':
+            lenEvseIdDin = self.payloadReaderReadBytes(1)
+            evseIdDin = self.payloadReaderReadBytes(lenEvseIdDin)
+
+            lenEvseIdIso = self.payloadReaderReadBytes(1)
+            evseIdIso = self.payloadReaderReadBytes(lenEvseIdDin)
+
+            lenProtocols = self.payloadReaderReadBytes(1)
+            protocols = self.payloadReaderReadBytes(lenProtocols)
+
+            lenPaymentMethod = self.payloadReaderReadBytes(1)
+            paymentMethod = self.payloadReaderReadBytes(lenPaymentMethod)
+
+            if 1 in paymentMethod:
+                certificateInstallationSupported = True if self.payloadReaderReadBytes(1) == b'\x00' else False
+                certificateUpdateSupported = True if self.payloadReaderReadBytes(1) == b'\x00' else False
+            
+            lenEnergyTransferMode = self.payloadReaderReadBytes(1)
+            energyTransferMode = self.payloadReaderReadBytes(lenEnergyTransferMode)
+
+            ret['evse_id_din'] = evseIdDin.decode('utf-8')
+            ret['evse_id_iso'] = evseIdIso.decode('utf-8')
+            ret['evse_protocols'] = protocols
+            ret['evse_payment_method'] = paymentMethod
+            ret['evse_certification_installation_support'] = certificateInstallationSupported
+            ret['evse_certification_update_support'] = certificateUpdateSupported
+            ret['evse_energy_transfer_mode'] = energyTransferMode
+
+        return ret
+
+    def v2gEvseSetDcChargingParameters(self, parameters):
+        """
+        Set DC Charging Parameter
+        """
+        
+        if not ('isolation_level' in parameters or isinstance(parameters['isolation_level'],int) or parameters['isolation_level'] in range(4)):
+            raise ValueError("isolation_level needs to be of type int with range 4")
+        elif not ('min_voltage' in parameters or isinstance(parameters['min_voltage'],(int, tuple))):
+            raise ValueError("min_voltage needs to be of type int or tuple")
+        elif not ('min_current' in parameters or isinstance(parameters['min_current'],(int, tuple))):
+            raise ValueError("min_current needs to be of type int or tuple")
+        elif not ('max_voltage' in parameters or isinstance(parameters['max_voltage'],(int, tuple))):
+            raise ValueError("max_voltage needs to be of type int or tuple")
+        elif not ('max_current' in parameters or isinstance(parameters['max_current'],(int, tuple))):
+            raise ValueError("max_current needs to be of type int or tuple")
+        elif not ('max_power' in parameters or isinstance(parameters['max_power'],(int, tuple))):
+            raise ValueError("max_power needs to be of type int or tuple")
+        elif not isinstance(parameters['current_regulation_tolerance'],(int, tuple)) if 'current_regulation_tolerance' in parameters else False:
+            raise ValueError("current_regulation_tolerance needs to be of type int or tuple")
+        elif not ('peak_current_ripple' in parameters or isinstance(parameters['peak_current_ripple'],(int, tuple))):
+            raise ValueError("peak_current_ripple needs to be of type int or tuple")
+        elif not ('status' in parameters or isinstance(parameters['status'],int) or parameters['status'] in range(6)):
+            raise ValueError("status needs to be of type int with range 6")
+        else:
+            payload = b''
+            payload += parameters['isolation_level'].to_bytes(1, "big")
+            payload += self._valueToExponential(parameters['min_voltage'])
+            payload += self._valueToExponential(parameters['min_current'])
+            payload += self._valueToExponential(parameters['max_voltage'])
+            payload += self._valueToExponential(parameters['max_current'])
+            payload += self._valueToExponential(parameters['max_power'])
+
+            if 'current_regulation_tolerance' in parameters:
+                payload += b'\x01'
+                payload += self._valueToExponential(parameters['current_regulation_tolerance'])
+            else:
+                payload += b'\x00'
+            
+            payload += self._valueToExponential(parameters['peak_current_ripple'])
+            payload += parameters['status'].to_bytes(1, "big")
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_dc_charging_parameters, payload)
+
+    def v2gEvseUpdateDcChargingParameters(self, parameters):
+            """
+            Update DC Charging Parameter
+            """
+
+            if not ('isolation_level' in parameters or isinstance(parameters['isolation_level'],int) or parameters['isolation_level'] in range(4)):
+                raise ValueError("isolation_level needs to be of type int with range 4")
+            elif not ('present_voltage' in parameters or isinstance(parameters['present_voltage'],(int, tuple))):
+                raise ValueError("present_voltage needs to be of type int or tuple")
+            elif not ('present_current' in parameters or isinstance(parameters['present_current'],(int, tuple))):
+                raise ValueError("present_current needs to be of type int or tuple")
+            elif not ('max_voltage' in parameters or isinstance(parameters['max_voltage'],(int, tuple))):
+                raise ValueError("max_voltage needs to be of type int or tuple")
+            elif not ('max_current' in parameters or isinstance(parameters['max_current'],(int, tuple))):
+                raise ValueError("max_current needs to be of type int or tuple")
+            elif not ('max_power' in parameters or isinstance(parameters['max_power'],(int, tuple))):
+                raise ValueError("max_power needs to be of type int or tuple")
+            elif not ('status' in parameters or isinstance(parameters['status'],int) or parameters['status'] in range(6)):
+                raise ValueError("status needs to be of type int with range 6")
+            else:
+                payload = b''
+                payload += parameters['isolation_level'].to_bytes(1, "big")
+                payload += self._valueToExponential(parameters['present_voltage'])
+                payload += self._valueToExponential(parameters['present_current'])
+                
+                if 'max_voltage' in parameters:
+                    payload += b'\x01'
+                    payload += self._valueToExponential(parameters['max_voltage'])
+                else:
+                    payload += b'\x00'
+
+                if 'max_current' in parameters:
+                    payload += b'\x01'
+                    payload += self._valueToExponential(parameters['max_current'])
+                else:
+                    payload += b'\x00'
+
+                if 'max_power' in parameters:
+                    payload += b'\x01'
+                    payload += self._valueToExponential(parameters['max_power'])
+                else:
+                    payload += b'\x00'
+                
+                payload += parameters['status'].to_bytes(1, "big")
+
+                self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_update_dc_charging_parameters, payload)
+
+    def v2gEvseGetDCChargingParameters(self):
+        """
+
+        """
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_get_dc_charging_parameters, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        code = self.payloadReaderReadInt(1)
+        ret['code'] = code
+        
+        if code > b'\x00':
+
+            isolationLevel = self.payloadReaderReadInt(1)
+
+            minVoltage = self.payloadReaderReadExponential()
+            minCurrent = self.payloadReaderReadExponential()
+            maxVoltage = self.payloadReaderReadExponential()
+            maxCurrent = self.payloadReaderReadExponential()
+            maxPower = self.payloadReaderReadExponential()
+
+            currentRegulationTolerancePresent = self.payloadReaderReadInt(1)
+            if currentRegulationTolerancePresent == 1:
+                currentRegulationTolerance = self.payloadReaderReadExponential()
+            
+            peakCurrentRipple = self.payloadReaderReadExponential()
+            
+            lenPresentVoltage = self.payloadReaderReadInt(1)
+            if lenPresentVoltage == 1:
+                presentVoltage = self.payloadReaderReadExponential()
+
+            lenPresentCurrent = self.payloadReaderReadInt(1)
+            if lenPresentCurrent == 1:
+                presentCurrent = self.payloadReaderReadExponential()
+
+            status = self.payloadReaderReadInt(1)
+
+            ret['isolation_level'] = isolationLevel
+            ret['min_voltage'] = minVoltage
+            ret['min_current'] = minCurrent
+            ret['max_voltage'] = maxVoltage
+            ret['max_current'] = maxCurrent
+            ret['max_power'] = maxPower
+            
+            if currentRegulationTolerancePresent == 1:
+                ret['current_regulation_tolerance'] = currentRegulationTolerance
+
+            ret['peak_current_ripple'] = peakCurrentRipple
+
+            if lenPresentVoltage == 1:
+                ret['present_voltage'] = presentVoltage
+            if lenPresentCurrent == 1:
+                ret['present_current'] = presentCurrent
+
+            ret['status'] = status
+
+        return ret   
+
+    def v2gEvseSetAcChargingParameters(self, parameters):
+        """
+        Set AC Charging Parameter
+        """
+        
+        if not ('rcd_status' in parameters or isinstance(parameters['rcd_status'], bool)):
+            raise ValueError("rcd_status needs to be of type bool")
+        elif not ('nominal_voltage' in parameters or isinstance(parameters['nominal_voltage'],(int, tuple))):
+            raise ValueError("nominal_voltage needs to be of type int or tuple")
+        elif not ('max_current' in parameters or isinstance(parameters['max_current'],(int, tuple))):
+            raise ValueError("max_current needs to be of type int or tuple")
+        else:
+            payload = b''
+            payload += parameters['rcd_status'].to_bytes(1, "big")
+            payload += self._valueToExponential(parameters['nominal_voltage'])
+            payload += self._valueToExponential(parameters['max_current'])
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_ac_charging_parameters, payload)
+
+    def v2gEvseUpdateAcChargingParameters(self, parameters):
+        """
+        Set DC Charging Parameter
+        """
+        
+        if not ('rcd_status' in parameters or isinstance(parameters['rcd_status'], bool)):
+            raise ValueError("rcd_status needs to be of type bool")
+        elif not isinstance(parameters['max_current'],(int, tuple)) if 'max_current' in parameters else False:
+            raise ValueError("max_current needs to be of type int or tuple")
+        else:
+            payload = b''
+            payload += b'\x01' if parameters['rcd_status'] == True else b'\x00'
+
+            if 'max_current' in parameters:
+                payload += int(1).to_bytes(1, "big")
+                payload += self._valueToExponential(parameters['max_current'])
+            else:
+                payload += int(0).to_bytes(1, "big")
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_update_ac_charging_parameters, payload)
+
+    def v2gEvseGetAcChargingParameters(self):
+        """
+
+        """
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_get_ac_charging_parameters, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        code = self.payloadReaderReadInt(1)
+        ret['code'] = code
+        
+        if code > b'\x00':
+
+            rcdStatus = self.payloadReaderReadInt(1)
+
+            nominalVoltage = self.payloadReaderReadExponential()
+            maxCurrent = self.payloadReaderReadExponential()
+
+            ret['rcd_status'] = True if rcdStatus == 0 else False
+            ret['nominal_voltage'] = nominalVoltage
+            ret['max_current'] = maxCurrent
+
+        return ret 
+
+    def v2gEvseSetSdpConfig(self, sdp_config):
         """
         Configures the SDP server
         """
-        if unsecure_port is not None and not isinstance(unsecure_port, int):
-            raise ValueError("Parameter unsecure port needs to be of type int")
-        elif unsecure_port is None:
-            raise ValueError("Parameter unsecure port cannot be None")
-        elif secure_port is not None and not isinstance(secure_port, int):
-            raise ValueError("Parameter unsecure port needs to be of type int")
-        elif unsecure_port is not None and unsecure_port not in range(49152, 65535):
-            raise ValueError("Parameter unsecure port needs to be between 49152 and 65535")
-        elif secure_port is not None and secure_port not in range(49152, 65535):
-            raise ValueError("Parameter unsecure port needs to be between 49152 and 65535")
-        elif unsecure_port is None and secure_port is None:
-            raise ValueError("At least one of the parameters unsecure port and secure port net to be set")
-        elif unsecure_port is not None and secure_port is not None and unsecure_port == secure_port:
-            raise ValueError("Parameter unsecure port and secure port cannot be the same")
+        if not ('allow_unsecure' in sdp_config or isinstance(sdp_config['allow_unsecure'], bool)):
+            raise ValueError("allow_unsecure needs to be of type bool")
+        elif not (isinstance(sdp_config['unsecure_port'], int) and (sdp_config['unsecure_port'] in range(49152, 65535))) if (('unsecure_port' in sdp_config) and (sdp_config['allow_unsecure'] == True)) else True:
+            raise ValueError("unsecure_port needs to be of type int with range 49152 to 65535")
+        if not ('allow_secure' in sdp_config or isinstance(sdp_config['allow_secure'], bool)):
+            raise ValueError("allow_secure needs to be of type bool")
+        elif not (isinstance(sdp_config['secure_port'], int) and (sdp_config['secure_port'] in range(49152, 65535))) if (('secure_port' in sdp_config) and (sdp_config['allow_secure'] == True)) else True:
+            raise ValueError("secure_port needs to be of type int with range 49152 to 65535")
+        elif (sdp_config['unsecure_port'] == sdp_config['secure_port']):
+            raise ValueError("unsecure_port and secure_port can not be the same")
         else:
             payload = b""
-            if unsecure_port is not None:
-                payload += b"\x01"
-                payload += unsecure_port.to_bytes(2, "big")
-            else:
-                payload += b"\x00"
-            if secure_port is not None:
-                payload += b"\x01"
-                payload += secure_port.to_bytes(2, "big")
-            else:
-                payload += b"\x00"
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_sdp_config, payload)
 
-    def v2gGetSdpConfig(self):
+            if sdp_config['allow_unsecure'] == True:
+                payload += b'\x01'
+                payload += sdp_config['unsecure_port'].to_bytes(2, "big")
+            else:
+                payload += b'\x00'
+
+            if sdp_config['allow_secure'] == True:
+                payload += b'\x01'
+                payload += sdp_config['allow_secure'].to_bytes(2, "big")
+            else:
+                payload += b'\x00'
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_sdp_config, payload)
+
+    def v2gEvseGetSdpConfig(self):
         """
         Returns the SDP server configuration
         """
-        unsecure_port = None
-        secure_port = None
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_sdp_config, None)
+        ret = {}
+        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_get_sdp_config, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
-        if self.payloadReaderReadInt(1) != 0:
-            unsecure_port = self.payloadReaderReadInt(2)
-        if self.payloadReaderReadInt(1) != 0:
-            secure_port = self.payloadReaderReadInt(2)
-        self.payloadReaderFinalize()
-        return unsecure_port, secure_port
+        code = self.payloadReaderReadInt(1)
+        ret['code'] = code
+        
+        if code > b'\x00':
 
-    def v2gSetPaymentOptions(self, payment_list):
-        """
-        Sets the supported payment options.
-        0: External payment, 1: Contract payment
-        """
-        payment_allowed = [0, 1]
-        if not isinstance(payment_list, list):
-            raise ValueError("Payment option list needs to be of type list")
-        elif len(payment_list) != len(set(payment_list)):
-            raise ValueError("Payment option list needs to have unique values")
-        elif any(i not in payment_allowed for i in payment_list):
-            raise ValueError("Element in Payment option list {} not in valid range {}".format(payment_list, payment_allowed))
-        else:
-            payload = b""
-            if len(payment_list) == 0:
-                payload += b"\x00"
+            allowUnsecure = self.payloadReaderReadInt(1)
+            if allowUnsecure == 1:
+                unsecurePort = self.payloadReaderReadInt(2)
+
+            allowSecure = self.payloadReaderReadInt(1)
+            if allowSecure == 1:
+                securePort = self.payloadReaderReadInt(2)
+
+            if allowUnsecure == 1:
+                ret['allow_unsecure'] = True
+                ret['unsecure_port'] = unsecurePort
             else:
-                payload += b"\x01"
-                payload += len(payment_list).to_bytes(1, "big")
-                for prot in payment_list:
-                    payload += prot.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_payment_options, payload)
+                 ret['allow_unsecure'] = False
 
-    def v2gGetPaymentOptions(self):
-        """
-        Returns the list of supported payment options.
-        0: External payment, 1: Contract payment
-        """
-        payment_list = []
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_payment_options, None)
-        self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
-        if self.payloadReaderReadInt(1) != 0:
-            for i in range(self.payloadReaderReadInt(1)):
-                payment_list.append(self.payloadReaderReadInt(1))
-        self.payloadReaderFinalize()
-        return payment_list
-
-    def v2gSetEnergyTransferModes(self, modes_list):
-        """
-        Sets the supported energy transfer modes.
-        0: DC core, 1: DC extended 2: DC combo core 3: DC unique 4: AC single phase, 5: AC three phase
-        """
-        modes_allowed = [0, 1, 2, 3, 4, 5]
-        if not isinstance(modes_list, list):
-            raise ValueError("Protocol list needs to be of type list")
-        elif len(modes_list) == 0:
-            raise ValueError("Protocol list is empty")
-        elif len(modes_list) != len(set(modes_list)):
-            raise ValueError("Protocol list needs to have unique values")
-        elif any(i not in modes_allowed for i in modes_list):
-            raise ValueError("Element in protocol list {} not in valid range {}".format(modes_list, modes_allowed))
-        else:
-            payload = len(modes_list).to_bytes(1, "big")
-            for prot in modes_list:
-                payload += prot.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_energy_transfer_modes, payload)
-
-    def v2gGetEnergyTransferModes(self):
-        """
-        Returns the list of supported energy transfer modes.
-        0: DC core, 1: DC extended 2: DC combo core 3: DC unique 4: AC single phase, 5: AC three phase
-        """
-        modes_list = []
-        response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_get_energy_transfer_modes, None)
-        self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
-        for i in range(self.payloadReaderReadInt(1)):
-            modes_list.append(self.payloadReaderReadInt(1))
-        self.payloadReaderFinalize()
-        return modes_list
-
-    def v2gSetEvseId(self, evseid):
-        """
-        Sets the requested EVSEID
-        """
-        if evseid is not None and isinstance(evseid, str) == False:
-            raise ValueError("Parameter EVSEID needs to be from type str")
-        elif evseid is not None and len(evseid) > 38:
-            raise ValueError("Parameter EVSEID has a maximum length of 38")
-        else:
-            if evseid is None or (evseid is not None and len(evseid) == 0):
-                payload = b"\x01"
+            if allowSecure == 1:
+                ret['allow_secure'] = True
+                ret['secure_port'] = securePort
             else:
-                payload = b"\x00" + len(evseid).to_bytes(1, "big") + bytes(evseid, 'ascii')
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_evseid, payload)
+                 ret['allow_secure'] = False
 
-    def v2gSetAuthorizationStatus(self, authorized):
-        """
-        Sets the status of the authorization.
-        True: succeeded, False: failed
-        """
-        if isinstance(authorized, bool) == False:
-            raise ValueError("Parameter authorized needs to be of type bool")
+        return ret
+
+    def v2gEvseStartListen(self):
+        payload = b''
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_start_listen, payload)
+
+    def v2gEvseSetAuthorizationStatus(self, status):
+        if not isinstance(status, bool):
+            raise ValueError('status needs to be of type bool')
         else:
-            payload = b""
-            if authorized:
-                payload += b"\x00"
+            payload = b'\x00' if status == True else b'\x01'
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_authorization_status, payload)
+
+    def v2gEvseSetSchedules(self, schedules):
+        if not ('code' in schedules or isinstance(schedules['code'], int) or schedules['code'] in [0,1]):
+            raise ValueError('code needs to be of type int and in range 0 to 1')
+        elif not ('schedule_tuples' in schedules or isinstance(schedules['schedule_tuples'], list)):
+            raise ValueError('schedule_tuples needs to be of type list')
+        elif not isinstance(schedules['energy_to_be_delivered'], (int, tuple)) if 'energy_to_be_delivered' in schedules else False:
+            raise ValueError('energy_to_be_delivered needs to be of type int or tuple')
+        else:
+            payload = b''
+
+            payload += schedules['code'].to_bytes(1, 'big')
+            payload += len(schedules['schedule_tuples']).to_bytes(1, 'big')
+
+            for schedule_tuple in schedules['schedule_tuples']:
+                if not ('schedule_tuple_id' in schedule_tuple or isinstance(schedule_tuple['schedule_tuple_id'], int) or (-32768 < schedule_tuple['schedule_tuple_id'] < 32768)):
+                    raise ValueError('schedule_tuple_id needs to be of type int with range -32768 to 32768')
+                elif not ('schedules' in schedule_tuple or isinstance(schedule_tuple['schedules'], list)):
+                    raise ValueError('schedules needs to be of type list')
+                else:
+
+                    payload += schedule_tuple['schedule_tuple_id'].to_bytes(2, 'big')
+                    payload += len(schedule_tuple['schedules']).to_bytes(2, 'big')
+
+                    for schedule in schedule_tuple['schedules']:
+                        if not ('start' in schedule or isinstance(schedule['start'], int) or (0 < schedule['start'] < 2**32)):
+                            raise ValueError('start needs to be of type int with range 0 to {}'.format(2**32))
+                        elif not ('interval' in schedule or isinstance(schedule['interval'], int) or (0 < schedule['interval'] < 2*32)):
+                            raise ValueError('interval needs to be of type int with range 0 to {}'.format(2**32))
+                        elif not ('power' in schedule or isinstance(schedule['power'], (int, tuple))):
+                            raise ValueError('power needs to be of type tuple or int')
+                        else:
+                            payload += schedule['start'].to_bytes(4, 'big')
+                            payload += schedule['interval'].to_bytes(4, 'big')
+                            payload += self._valueToExponential(schedule['power'])
+
+            if 'energy_to_be_delivered' in schedules:
+                payload += b'\x01'
+                payload += self._valueToExponential(schedules['energy_to_be_delivered'])
             else:
-                payload += b"\x01"
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_authorization_status, payload)
+                payload += b'\x00'
 
-    def v2gSetDcDiscoveryChargeParameters(self, code, isolation_level, max_current, min_current, max_voltage, min_voltage, max_power, current_regulation_tolerance, peak_current_ripple, energy_to_be_delivered):
-        """
-        Sets the discovery charge parameters.
-        If code is set to 1 or 2, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1, 2]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
-                    raise ValueError("Parameter max current needs to be of type int or tuple with length 2")
-                elif not isinstance(min_current, int) and not (isinstance(min_current, tuple) and len(min_current) == 2):
-                    raise ValueError("Parameter min current needs to be of type int or tuple with length 2")
-                elif not isinstance(max_voltage, int) and not (isinstance(max_voltage, tuple) and len(max_voltage) == 2):
-                    raise ValueError("Parameter max voltage needs to be of type int or tuple with length 2")
-                elif not isinstance(min_voltage, int) and not (isinstance(min_voltage, tuple) and len(min_voltage) == 2):
-                    raise ValueError("Parameter min voltage needs to be of type int or tuple with length 2")
-                elif not isinstance(max_power, int) and not (isinstance(max_power, tuple) and len(max_power) == 2):
-                    raise ValueError("Parameter max power needs to be of type int or tuple with length 2")
-                elif current_regulation_tolerance is not None and not isinstance(current_regulation_tolerance, int) and not (isinstance(current_regulation_tolerance, tuple) and len(current_regulation_tolerance) == 2):
-                    raise ValueError("Parameter current regulation tolerance needs to be of type int or tuple with length 2")
-                elif not isinstance(peak_current_ripple, int) and not (isinstance(peak_current_ripple, tuple) and len(peak_current_ripple) == 2):
-                    raise ValueError("Parameter peak current ripple needs to be of type int or tuple with length 2")
-                elif energy_to_be_delivered is not None and not isinstance(energy_to_be_delivered, int) and not (isinstance(energy_to_be_delivered, tuple) and len(energy_to_be_delivered) == 2):
-                    raise ValueError("Parameter energy to be delivered needs to be of type int or tuple with length 2")
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-                    if isinstance(max_current, int):
-                        payload += max_current.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += max_current[0].to_bytes(2, "big")
-                        payload += max_current[1].to_bytes(1, "big")
-                    if isinstance(min_current, int):
-                        payload += min_current.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += min_current[0].to_bytes(2, "big")
-                        payload += min_current[1].to_bytes(1, "big")
-                    if isinstance(max_voltage, int):
-                        payload += max_voltage.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += max_voltage[0].to_bytes(2, "big")
-                        payload += max_voltage[1].to_bytes(1, "big")
-                    if isinstance(min_voltage, int):
-                        payload += min_voltage.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += min_voltage[0].to_bytes(2, "big")
-                        payload += min_voltage[1].to_bytes(1, "big")
-                    if isinstance(max_power, int):
-                        payload += max_power.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += max_power[0].to_bytes(2, "big")
-                        payload += max_power[1].to_bytes(1, "big")
-                    if current_regulation_tolerance is not None:
-                        payload += b"\x01"
-                        if isinstance(current_regulation_tolerance, int):
-                            payload += current_regulation_tolerance.to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += current_regulation_tolerance[0].to_bytes(2, "big")
-                            payload += current_regulation_tolerance[1].to_bytes(1, "big")
-                    else:
-                        payload += b"\x00"
-                    if isinstance(peak_current_ripple, int):
-                        payload += peak_current_ripple.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += peak_current_ripple[0].to_bytes(2, "big")
-                        payload += peak_current_ripple[1].to_bytes(1, "big")
-                    if energy_to_be_delivered is not None:
-                        payload += b"\x01"
-                        if isinstance(energy_to_be_delivered, int):
-                            payload += energy_to_be_delivered.to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += energy_to_be_delivered[0].to_bytes(2, "big")
-                            payload += energy_to_be_delivered[1].to_bytes(1, "big")
-                    else:
-                        payload += b"\x00"
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_discovery_charge_params, payload)
-
-    def v2gSetSchedules(self, code, schedule):
-        """
-        Sets the discovery charge parameters.
-        If code is set to 1, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        elif isinstance(schedule, list) == False:
-            raise ValueError("Parameter schedule needs to be of type list")
-        else:
-            # Check for correct schedule format
-            for schedule_tuple in schedule:
-                if "id" not in schedule_tuple:
-                    raise ValueError("Schedule tuple needs to have key 'id'")
-                if "tuple" not in schedule_tuple:
-                    raise ValueError("Schedule tuple needs to have key 'tuple'")
-                for entry in schedule_tuple["tuple"]:
-                    if "start" not in entry:
-                        raise ValueError("Schedule tuple entry needs to have key 'start'")
-                    if "interval" not in entry:
-                        raise ValueError("Schedule tuple entry needs to have key 'interval'")
-                    if "max_power" not in entry:
-                        raise ValueError("Schedule tuple entry needs to have key 'max_power'")
-            # Prepare the schedule message
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                payload += len(schedule).to_bytes(1, "big")
-                for schedule_tuple in schedule:
-                    payload += schedule_tuple["id"].to_bytes(2, "big")
-                    payload += len(schedule_tuple["tuple"]).to_bytes(2, "big")
-                    for entry in schedule_tuple["tuple"]:
-                        payload += entry["start"].to_bytes(4, "big")
-                        payload += entry["interval"].to_bytes(4, "big")
-                        if isinstance(entry["max_power"], int):
-                            payload += entry["max_power"].to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += entry["max_power"][0].to_bytes(2, "big")
-                            payload += entry["max_power"][1].to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_schedules, payload)
-
-    def v2gSetDcCableCheckStatus(self, status):
-        """
-        Sets the status of the cable check.
-        True: succeeded, False: failed
-        """
-        if isinstance(status, bool) == False:
-            raise ValueError("Parameter status needs to be of type bool")
-        else:
-            payload = b""
-            if status:
-                payload += b"\x00"
+            if 'sales_tariff_tuples' not in schedules or len(schedules['sales_tariff_tuples']) == 0:
+                payload += b'\x00'
             else:
-                payload += b"\x01"
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_cable_check_status, payload)
+                if not (isinstance(schedules['sales_tariff_tuples'], list)):
+                    raise ValueError('sales_tariff_tuples needs to be of type list')
+                elif not ('signature_value' in schedules or isinstance(schedules['signature_value'], list) or len(schedules['signature_value']) == 64):
+                    raise ValueError('signature_value needs to be of type list with length 64')
 
-    def v2gSetDcCableCheckParameters(self, code, isolation_level):
-        """
-        Sets the cable check parameters.
-        If code is set to 1 or 2, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1, 2]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_cable_check_params, payload)
+                payload += len(schedules['sales_tariff_tuples']).to_bytes(1, 'big')
 
-    def v2gSetDcPreChargeParameters(self, code, isolation_level, present_voltage):
-        """
-        Sets the pre charge parameters.
-        If code is set to 1 or 2, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1, 2]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                elif not isinstance(present_voltage, int) and not (isinstance(present_voltage, tuple) and len(present_voltage) == 2):
-                    raise ValueError("Parameter present voltage needs to be of type int or tuple with length 2")
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-                    if isinstance(present_voltage, int):
-                        payload += present_voltage.to_bytes(2, "big")
-                        payload += b"\x00"
+                for sales_tariff in schedules['sales_tariff_tuples']:
+                    if not ('sales_tariff_id' in sales_tariff or isinstance(sales_tariff['sales_tariff_id'], int) or (0 < sales_tariff['sales_tariff_id'] < 256)):
+                        raise ValueError('schedule_tuple_id needs to be of type int with range -32768 to 32768')
+                    elif not (isinstance(sales_tariff['sales_tariff_description'], str) or len(sales_tariff['sales_tariff_description']) <= 32) if 'sales_tariff_description' in sales_tariff else False:
+                        raise ValueError('sales_tariff_description needs to be of type str with length <= 32')
+                    elif not ('number_of_price_levels' in sales_tariff or isinstance(sales_tariff['number_of_price_levels'], int) or 0 <= sales_tariff['number_of_price_levels'] < 256):
+                        raise ValueError('number_of_price_levels needs to be of type int with range 0 to 255')
+                    elif not ('sales_tariff_entries' in sales_tariff or isinstance(sales_tariff['sales_tariff_entries'], list) or 1 <= len(sales_tariff['sales_tariff_entries']) <= 10):
+                        raise ValueError('sales_tariff_entries needs to be of type list with length between 1 or 10')
+                    elif not ('signature_id' in sales_tariff or isinstance(sales_tariff['signature_id'], str) or 1 <= len(sales_tariff['signature_id']) <= 254):
+                        raise ValueError('signature_id needs to be of type str with length between 1 and 254')
+                    elif not ('digest_value' in sales_tariff or isinstance(sales_tariff['digest_value'], list) or len(sales_tariff['digest_value']) == 32):
+                        raise ValueError('digest_value needs to be of type list with length 32')
                     else:
-                        payload += present_voltage[0].to_bytes(2, "big")
-                        payload += present_voltage[1].to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_pre_charge_params, payload)
+                        payload += sales_tariff['sales_tariff_id'].to_bytes(1, 'big')
+                        payload += len(sales_tariff['sales_tariff_description']).to_bytes(1, 'big')
+                        payload += sales_tariff['sales_tariff_description'].encode('utf-8')
+                        payload += sales_tariff['number_of_price_levels'].to_bytes(1, 'big')
 
-    def v2gSetDcStartChargingStatus(self, code, isolation_level):
-        """
-        Sets the start charging status.
-        If code is set to 1, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_start_charging_status, payload)
+                        payload += len(sales_tariff['sales_tariff_entries']).to_bytes(2, 'big')
+                        for entry in sales_tariff['sales_tariff_entries']:
+                            if not ('time_interval_start' in entry or isinstance(entry['time_interval_duration'], int) or (0 < entry['time_interval_duration'] < 16777214)):
+                                raise ValueError('time_interval_start needs to be of type int with range 0 to 16777214')
+                            elif not ('time_interval_duration' in entry or isinstance(entry['time_interval_duration'], int) or (0 < entry['time_interval_duration'] < 86400)):
+                                raise ValueError('time_interval_duration needs to be of type int with range 0 to 86400')
+                            elif not ('price_level' in schedule or isinstance(entry['price_level'], int) or (0 <= entry['price_level'] <= 255)):
+                                raise ValueError('price_level needs to be of type int with range 0 to 255')
+                            elif not ('consumption_costs' in schedule or isinstance(entry['consumption_costs'], list) or (1 <= len(entry['consumption_costs']) <= 3)):
+                                raise ValueError('consumption_costs needs to be of type list with length between 1 and 3')
+                            else:
 
-    def v2gSetDcChargeLoopParameters(self, code, isolation_level, present_voltage, present_current, max_current, max_voltage, max_power, max_current_reached, max_voltage_reached, max_power_reached):
-        """
-        Sets the pre charge parameters.
-        If code is set to 1 or 2, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1, 2]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                elif not isinstance(present_voltage, int) and not (isinstance(present_voltage, tuple) and len(present_voltage) == 2):
-                    raise ValueError("Parameter present voltage needs to be of type int or tuple with length 2")
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-                    if isinstance(present_voltage, int):
-                        payload += present_voltage.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += present_voltage[0].to_bytes(2, "big")
-                        payload += present_voltage[1].to_bytes(1, "big")
-                    if isinstance(present_current, int):
-                        payload += present_current.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += present_current[0].to_bytes(2, "big")
-                        payload += present_current[1].to_bytes(1, "big")
-                    if max_current is not None:
-                        payload += b"\x01"
-                        if isinstance(max_current, int):
-                            payload += max_current.to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += max_current[0].to_bytes(2, "big")
-                            payload += max_current[1].to_bytes(1, "big")
-                    else:
-                        payload += b"\x00"
-                    if max_voltage is not None:
-                        payload += b"\x01"
-                        if isinstance(max_voltage, int):
-                            payload += max_voltage.to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += max_voltage[0].to_bytes(2, "big")
-                            payload += max_voltage[1].to_bytes(1, "big")
-                    else:
-                        payload += b"\x00"
-                    if max_power is not None:
-                        payload += b"\x01"
-                        if isinstance(max_power, int):
-                            payload += max_power.to_bytes(2, "big")
-                            payload += b"\x00"
-                        else:
-                            payload += max_power[0].to_bytes(2, "big")
-                            payload += max_power[1].to_bytes(1, "big")
-                    else:
-                        payload += b"\x00"
-                    if max_current_reached:
-                        payload += b"\x01"
-                    else:
-                        payload += b"\x00"
-                    if max_voltage_reached:
-                        payload += b"\x01"
-                    else:
-                        payload += b"\x00"
-                    if max_power_reached:
-                        payload += b"\x01"
-                    else:
-                        payload += b"\x00"
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charge_loop_params, payload)
+                                payload += entry['time_interval_start'].to_bytes(4, 'big')
+                                payload += entry['time_interval_duration'].to_bytes(4, 'big')
+                                payload += entry['price_level'].to_bytes(1, 'big')
+                                
+                                payload += len(entry['consumption_costs']).to_bytes(1, 'big')
+                                for consumption in entry['consumption_costs']:
+                                    if not ('start_value' in consumption or isinstance(consumption['start_value'], (int, tuple))):
+                                        raise ValueError('start_value needs to be of type int or tuple')
+                                    elif not ('costs' in consumption or isinstance(consumption['costs'], list) or (1 <= len(consumption['costs']) <= 3)):
+                                        raise ValueError('costs needs to be of type list with length between 1 and 3')
+                                    else:
+                                
+                                        payload += self._valueToExponential(consumption['start_value'])
+                                        
+                                        payload += len(consumption['costs']).to_bytes(1, 'big')
+                                        for cost in consumption['costs']:
+                                            if not ('kind' in cost or isinstance(cost['kind'], int) or cost['kind'] in [0,1,2]):
+                                                raise ValueError('kind needs to be of type int with range 0 to 2')
+                                            elif not ('amount' in cost or isinstance(cost['amount'], int) or 0 <= cost['amount'] < 2**32):
+                                                raise ValueError('amount needs to be of type int with range 0 to {}'.format(2**32))
+                                            elif not ('amount_multiplier' in cost or isinstance(cost['amount_multiplier'], int) or cost['amount_multiplier'] in range(-3, 4)):
+                                                raise ValueError('amount_multiplier needs to be of type int with range -3 to 3')
+                                            else:
+                                                
+                                                payload += cost['kind'].to_bytes(1, 'big')
+                                                payload += cost['amount'].to_bytes(4, 'big')
+                                                payload += cost['amount_multiplier'].to_bytes(1, 'big')
 
-    def v2gSetDcStopChargingStatus(self, code, isolation_level):
-        """
-        Sets the stop charging status.
-        If code is set to 1, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
-        else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_stop_charging_status, payload)
+                        payload += len(sales_tariff['signature_id']).to_bytes(1, 'big')
+                        payload += sales_tariff['signature_id'].encode('utf-8')
+                        
+                        payload += len(sales_tariff['digest_value']).to_bytes(1, 'big')
+                        for val in sales_tariff['digest_value']:
+                            payload += val.to_bytes(1, 'big')
 
-    def v2gSetDcPostChargeParameters(self, code, isolation_level, present_voltage):
-        """
-        Sets the post charge parameters.
-        If code is set to 1 or 2, all other parameters can be set to None
-        """
-        codes_allowed = [0, 1, 2]
-        if isinstance(code, int) == False:
-            raise ValueError("Parameter code needs to be of type int")
-        elif code not in codes_allowed:
-            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
+                payload += len(schedules['signature_value']).to_bytes(1, 'big')
+                for val in schedules['signature_value']:
+                    payload += val.to_bytes(1, 'big')
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_schedules, payload)
+
+    def v2gEvseSetCableCheckFinished(self, code):
+        if not (isinstance(code, bool)):
+            raise ValueError('code needs to be of type bool')
         else:
-            payload = code.to_bytes(1, "big")
-            if code == 0:
-                if isinstance(isolation_level, int) == False:
-                    raise ValueError("Parameter isolation level needs to be of type int")
-                elif isolation_level not in range(0, 5):
-                    raise ValueError("Parameter isolation level invalid value: {}".format(isolation_level))
-                elif not isinstance(present_voltage, int) and not (isinstance(present_voltage, tuple) and len(present_voltage) == 2):
-                    raise ValueError("Parameter present voltage needs to be of type int or tuple with length 2")
-                else:
-                    payload += b"\x00"
-                    payload += isolation_level.to_bytes(1, "big")
-                    if isinstance(present_voltage, int):
-                        payload += present_voltage.to_bytes(2, "big")
-                        payload += b"\x00"
-                    else:
-                        payload += present_voltage[0].to_bytes(2, "big")
-                        payload += present_voltage[1].to_bytes(1, "big")
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_post_charge_params, payload)
+            payload = b'\x00' if code == True else b'\x01'
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_cable_check_finished, payload)
+
+    def v2gEvseStartCharging(self):
+        payload = b''
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_start_charging, payload)
+
+    def v2gEvseStopCharging(self):
+        payload = b''
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_stop_charging, payload)
+
+    def v2gEvseStopListen(self):
+        payload = b''
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_stop_listen, payload)
+
+    def v2gEvseSetCertificateInstallationAndUpdateResponse(self, response):
+        if not ('status' in response or isinstance(response['status'], int) or response['status'] in [0,1,2]):
+            raise ValueError('status needs to be of type int with range 0 to 2')
+        elif not ('exi_response' in response or isinstance(response['exi_response'], list) or len(response['exi_response']) <= 6000):
+            raise ValueError('exi_response needs to be of type list with length <= 6000')
+        else:
+            payload = b''
+            payload += response['status'].to_bytes(1, 'big')
+            payload += response['exi_response'].to_bytes(len(response['exi_response'], 'big'))
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_cable_certificate_installation_and_update_response, payload)
+
+    def v2gEvseSetMeterReceiptRequest(self, receipt):
+        if not ('meter_id' in receipt or isinstance(receipt['meter_id'], str) or len(receipt['meter_id']) < 33):
+            raise ValueError('meter_id needs to be of type str with length <= 32')
+        elif not (isinstance(receipt['meter_reading'], int) or (0 < receipt['meter_reading'] < 2**64)) if 'meter_reading' in receipt else False:
+            raise ValueError('meter_reading needs to be of type int with range 0 to {}'.format(2**64))
+        elif not (isinstance(receipt['meter_reading_signature'], list) or len(receipt['meter_reading_signature']) <= 64) if 'meter_reading_signature' in receipt else False:
+            raise ValueError('meter_reading_signature needs to be of type list with length <= 64')
+        elif not (isinstance(receipt['meter_status'], int) or (0 < receipt['meter_status'] < 2**16)) if 'meter_status' in receipt else False:
+            raise ValueError('meter_status needs to be of type list with length <= {}'.format(2**16))
+        elif not (isinstance(receipt['meter_timestamp'], int) or (0 < receipt['meter_timestamp'] < 2**64)) if 'meter_timestamp' in receipt else False:
+            raise ValueError('meter_timestamp needs to be of type list with length <= {}'.format(2**64))
+        else:
+            payload = b''
+            payload += receipt['meter_id'].encode('utf-8')
+            
+            if 'meter_reading' in receipt:
+                payload += b'\x01'
+                payload += receipt['meter_reading'].to_bytes(8, 'big')
+            else:
+                payload += b'\x00'
+
+            if 'meter_reading_signature' in receipt:
+                payload += len(receipt['meter_reading_signature'])
+                for val in receipt['meter_reading_signature']:
+                    payload += val.to_bytes(1, 'big')
+            else:
+                payload += b'\x00'
+            
+            if 'meter_status' in receipt:
+                payload += len(receipt['meter_status'])
+                for val in receipt['meter_status']:
+                    payload += val.to_bytes(2, 'big')
+            else:
+                payload += b'\x00'
+
+            if 'meter_timestamp' in receipt:
+                payload += b'\x01'
+                payload += receipt['meter_timestamp'].to_bytes(8, 'big')
+            else:
+                payload += b'\x00'
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_meter_receipt, payload)
+
+    def v2gEvseSendNotification(self, renegotiation, timeout):
+        if not isinstance(renegotiation, bool):
+            raise ValueError('renegotiation needs to be of type bool')
+        elif not (isinstance(timeout, int) or (0 < timeout < 2**32)):
+            raise ValueError('timeout needs to be of type int with range 0 to {}'.format(2**32))
+        else:
+            payload = b''
+            payload += b'\x01' if renegotiation == True else b'\x00'
+            payload += timeout.to_bytes(4, 'big')
+
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_send_notification, payload)
 
     def v2gEvseParseSessionStarted(self, data):
         """
         Parse a session started message.
         Will return a dictionary with the following keys:
-        keys protocol    int
-        session_id       bytes
-        evcc_id          bytes
+        protocol    int
+        session_id  bytes
+        evcc_id     bytes
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['protocol'] = self.payloadReaderReadInt(1)
         message['session_id'] = self.payloadReaderReadBytes(8)
         message['evcc_id'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParsePaymentSelected(self, data):
+        """
+        Parse a payment selected message.
+        Will return a dictionary with the following keys:
+        selected_payment_method     int
+        contract_certificate        bytes[0-800]
+        mo_sub_ca1                  bytes[0-800]
+        mo_sub_ca2                  bytes[0-800]
+        emaid                       string
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['selected_payment_method'] = self.payloadReaderReadInt(1)
+        if message['selected_payment_method'] == 1:
+            message['contract_certificate'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+            message['mo_sub_ca1'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+            message['mo_sub_ca2'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+            message['emaid'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1)).decode('utf-8')
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseAuthorizationStatusRequested(self, data):
+        """
+        Parse a authorization status requested message.
+        Will return a dictionary with the following keys:
+        timeout    int
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['timeout'] = self.payloadReaderReadInt(4)
         self.payloadReaderFinalize()
         return message
 
@@ -1650,83 +1748,65 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestAuthorization(self, data):
+    def v2gEvseParseEnergyTransferModeSelected(self, data):
         """
-        Parse a session stopped message.
+        Parse a energy transfer mode selected message.
         Will return a dictionary with the following keys:
-        timeout    int
+        departure_time                  int (optional)
+        energy_request                  int or float (optional)
+        max_voltage                     int or float
+        min_current                     int or float (optional)
+        max_current                     int or float
+        max_power                       int or float (optional)
+        selected_energy_transfer_mode   int or float (optional)
+        energy_capacity                 int or float
+        full_soc                        int (optional)
+        bulk_soc                        int (optional)
+        ready                           bool
+        error_code                      int
+        soc                             int
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = int(self.payloadReaderReadInt(4))
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['departure_time'] = self.payloadReaderReadInt(4)
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['energy_request'] = self.payloadReaderReadExponential()
+
+        message['max_voltage'] = self.payloadReaderReadExponential()
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['min_current'] = self.payloadReaderReadExponential()
+
+        message['max_current'] = self.payloadReaderReadExponential()
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['max_power'] = self.payloadReaderReadExponential()
+
+        message['selected_energy_transfer_mode'] = self.payloadReaderReadInt(1)
+        message['energy_capacity'] = self.payloadReaderReadExponential()
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['full_soc'] = self.payloadReaderReadInt(1)
+
+        if self.payloadReaderReadInt(1) == 1:   
+            message['bulk_soc'] = self.payloadReaderReadInt(1)
+
+        message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
+        message['error_code'] = self.payloadReaderReadInt(1)
+        message['soc'] = self.payloadReaderReadInt(1)
+
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestDiscoveryChargeParameters(self, data):
-        """
-        Parse a request discovery charge parameters message.
-        Will return a dictionary with the following keys:
-        timeout    int
-        type       int
-        dc         dict (optional)
-        ac         dict (optional)
-        
-        The dictionary dc has the following keys:
-        ev_max_current    int or float
-        ev_min_current    int or float (optional)
-        ev_max_power      int or float (optional)
-        ev_min_power      int or float (optional)
-        ev_max_voltage    int or float
-        ev_min_voltage    int or float (optional)
-        full_soc          int (optional)
-        bulk_soc          int (optional)
-        soc               int
-        
-        The dictionary ac has the following keys:
-        energy_amount     int or float
-        ev_max_voltage    int or float
-        ev_max_current    int or float
-        ev_min_current    int or float
-        """
-        message = {}
-        self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            # Parse DC parameters
-            message['dc'] = {}
-            message['dc']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_min_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['full_soc'] = self.payloadReaderReadInt(1)
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['bulk_soc'] = self.payloadReaderReadInt(1)
-            message['dc']['soc'] = self.payloadReaderReadInt(1)
-        elif message['type'] == 1:
-            # Parse AC parameters
-            message['ac'] = {}
-            message['ac']['energy_amount'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['ac']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['ac']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['ac']['ev_min_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-        self.payloadReaderFinalize()
-        return message
-
-    def v2gEvseParseRequestSchedules(self, data):
+    def v2gEvseParseSchedulesRequested(self, data):
         """
         Parse a request schedules message.
         Will return a dictionary with the following keys:
         timeout        int
         max_entries    int
-        timestamp      int
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
@@ -1735,7 +1815,81 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestCableCheckStatus(self, data):
+    def v2gEvseParseDCChargeParametersChanged(self, data):
+        """
+        Parse a dc charge parameteres changed message.
+        Will return a dictionary with the following keys:
+        max_voltage                     int or float
+        max_current                     int or float
+        max_power                       int or float
+        ready                           bool
+        error_code                      int
+        soc                             int
+        target_voltage                  int or float (optional)
+        target_current                  int or float (optional)
+        full_soc                        int (optional)
+        bulk_soc                        int (optional)
+        charging_complete               bool (optional)
+        bulk_charging_complete          bool (optional)
+        remaining_time_to_full_soc      int or float (optional)
+        remaining_time_to_bulk_soc      int or float (optional)
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['max_voltage'] = self.payloadReaderReadExponential()
+        message['max_current'] = self.payloadReaderReadExponential()
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['max_power'] = self.payloadReaderReadExponential()
+
+        message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
+        message['error_code'] = self.payloadReaderReadInt(1)
+        message['soc'] = self.payloadReaderReadInt(1)
+        
+        message['target_voltage'] = self.payloadReaderReadExponential()
+        message['target_current'] = self.payloadReaderReadExponential()
+        
+        if self.payloadReaderReadInt(1) == 1:
+            message['full_soc'] = self.payloadReaderReadInt(1)
+        
+        if self.payloadReaderReadInt(1) == 1:
+            message['bulk_soc'] = self.payloadReaderReadInt(1)
+
+        message['charging_complete'] = self.payloadReaderReadInt(1)
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['bulk_charging_complete'] = True if self.payloadReaderReadInt(1) == 1 else False
+        
+        if self.payloadReaderReadInt(1) == 1:
+            message['remaining_time_to_full_soc'] = self.payloadReaderReadExponential()
+
+        if self.payloadReaderReadInt(1) == 1:
+            message['remaining_time_to_bulk_soc'] = self.payloadReaderReadExponential()
+
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseACChargeParametersChanged(self, data):
+        """
+        Parse a dc charge parameteres changed message.
+        Will return a dictionary with the following keys:
+        max_voltage                  int or float
+        min_current                  int or float
+        max_current                  int or float
+        energy_amount                int or float
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        
+        message['max_voltage'] = self.payloadReaderReadExponential()
+        message['min_current'] = self.payloadReaderReadExponential()
+        message['max_current'] = self.payloadReaderReadExponential()
+        message['energy_amount'] = self.payloadReaderReadExponential()
+
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseCableCheckRequested(self, data):
         """
         Parse a request cable check status message.
         Will return a dictionary with the following keys:
@@ -1747,193 +1901,125 @@ class Whitebeet():
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestCableCheckParameters(self, data):
+    def v2gEvseParsePreChargeStarted(self, data):
         """
-        Parse a request cable check parameters message.
-        Will return a dictionary with the following keys:
-        timeout    int
-        type       int
-        dc         dict
-        
-        The dictionary dc has the following keys:
-        soc    int
+        nothing to do
         """
-        message = {}
-        self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            message['dc'] = {}
-            message['dc']['soc'] = self.payloadReaderReadInt(1)
-        self.payloadReaderFinalize()
-        return message
+        pass
 
-    def v2gEvseParseRequestPreChargeParameters(self, data):
+    def v2gEvseParseStartChargingRequested(self, data):
         """
-        Parse a request pre charge parameters message.
-        Will return a dictionary with the following keys:
-        timeout    int
-        type       int
-        dc         dict
-        
-        The dictionary dc has the following keys:
-        ev_target_voltage    int or float
-        ev_target_current    int or float
-        soc                  int
-        """
-        message = {}
-        self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            message['dc'] = {}
-            message['dc']['ev_target_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['ev_target_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['soc'] = self.payloadReaderReadInt(1)
-        self.payloadReaderFinalize()
-        return message
-
-    def v2gEvseParseRequestStartCharging(self, data):
-        """
-        Parse a request start charging message.
+        Parse a start charging requested message.
         Will return a dictionary with the following keys:
         timeout             int
-        schedule_id         int
-        time_anchor         int
-        ev_power_profile    list of tuples
-        type                int
-        dc                  dict
+        schedule_tuple_id   int
+        charging_profiles   list
         
-        The tuple entries fo the list ev_power_profile have the following entries:
-        intervall    int
+        The dict entries fo the list charging_profiles have the following entries:
+        start        int
         power        int or float
-        
-        The dictionary dc has the following keys:
-        soc                       int
-        charging_complete         bool
-        bulk_charging_complete    bool
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['timeout'] = self.payloadReaderReadInt(4)
-        message['schedule_id'] = self.payloadReaderReadInt(2)
-        message['ev_power_profile'] = []
+        message['schedule_tuple_id'] = self.payloadReaderReadInt(2)
+
+        message['charging_profiles'] = []
         for i in range(self.payloadReaderReadInt(1)):
             start = self.payloadReaderReadInt(4)
-            power = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['ev_power_profile'].append((start, power))
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            message['dc'] = {}
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['soc'] = self.payloadReaderReadInt(1)
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['charging_complete'] = (self.payloadReaderReadInt(1) != 0)
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['bulk_charging_complete'] = (self.payloadReaderReadInt(1) != 0)
+            power = self.payloadReaderReadExponential()
+            message['charging_profiles'].append({'start': start, 'power': power})
+
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestChargeLoopParameters(self, data):
+    def v2gEvseParseStopChargingRequested(self, data):
         """
-        Parse a request charge loop parameters message.
+        Parse a stop charging requested message.
         Will return a dictionary with the following keys:
-        timeout    int
-        type       int
-        dc         dict (optional)
-        ac         dict (optional)
-        
-        The dictionary dc has the following keys:
-        ev_max_current                int or float (optional)
-        ev_max_voltage                int or float (optional)
-        ev_max_power                  int or float (optional)
-        ev_target_voltage             int or float
-        ev_target_current             int or float
-        soc                           int
-        charging_complete             bool
-        bulk_charging_complete        bool (optional)
-        remaining_time_to_full_soc    int or float (optional)
-        remaining_time_to_bulk_soc    int or float (optional)
-        
-        The dictionary ac is empty.
+        timeout             int
+        renegotiation      bool
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            # Parse DC parameters
-            message['dc'] = {}
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['ev_max_power'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['ev_target_voltage'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['ev_target_current'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            message['dc']['soc'] = self.payloadReaderReadInt(1)
-            message['dc']['charging_complete'] = (self.payloadReaderReadInt(1) != 0)
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['bulk_charging_complete'] = (self.payloadReaderReadInt(1) != 0)
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['remaining_time_to_full_soc'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-            if self.payloadReaderReadInt(1) == 1:
-                message['dc']['remaining_time_to_bulk_soc'] = self.payloadReaderReadIntSigned(2) * pow(10, self.payloadReaderReadIntSigned(1))
-        if message['type'] == 1:
-            # AC parameters empty
-            message['ac'] = {}
-            pass
+        message['renegotiation'] = True if self.payloadReaderReadInt(1) == 1 else False
+
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestStopCharging(self, data):
+    def v2gEvseParseWeldingDetectionStarted(self, data):
         """
-        Parse a request stop charging message.
+        nothing to do
+        """
+        pass
+
+    def v2gEvseParseSessionStopped(self, data):
+        """
+        Parse a session stopped message.
         Will return a dictionary with the following keys:
-        timeout        int
-        schedule_id    int
-        type           int
-        dc             dict
-        
-        The dictionary dc has the following keys:
-        soc                       int
-        charging_complete         bool
-        bulk_charging_complete    bool
+        closure_type    int
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            message['dc'] = {}
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['soc'] = self.payloadReaderReadInt(1)
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['charging_complete'] = self.payloadReaderReadInt(1)
-            if self.payloadReaderReadInt(1) != 0:
-                message['dc']['bulk_charging_complete'] = self.payloadReaderReadInt(1)
+        message['closure_type'] = self.payloadReaderReadInt(1)
+
         self.payloadReaderFinalize()
         return message
 
-    def v2gEvseParseRequestPostChargeParameters(self, data):
+    def v2gEvseParseSessionError(self, data):
         """
-        Parse a request post charge parameters message.
+        Parse a session error message.
         Will return a dictionary with the following keys:
-        timeout    int
-        type       int
-        dc         dict
-        
-        The dictionary dc has the following keys:
-        soc    int
+        error_code  int
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
-        message['timeout'] = self.payloadReaderReadInt(4)
-        message['type'] = self.payloadReaderReadInt(1)
-        if message['type'] == 0:
-            message['dc'] = {}
-            message['dc']['soc'] = self.payloadReaderReadInt(1)
+        message['error_code'] = self.payloadReaderReadInt(1)
+
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseCertificateInstallationRequested(self, data):
+        """
+        Parse a session error message.
+        Will return a dictionary with the following keys:
+        timeout     int
+        exi_request list
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['timeout'] = self.payloadReaderReadInt(1)
+        message['exi_request'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(2))
+
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseCertificateUpdateRequested(self, data):
+        """
+        Parse a session error message.
+        Will return a dictionary with the following keys:
+        timeout     int
+        exi_request list
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['timeout'] = self.payloadReaderReadInt(1)
+        message['exi_request'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(2))
+
+        self.payloadReaderFinalize()
+        return message
+
+    def v2gEvseParseMeteringReceiptStatus(self, data):
+        """
+        Parse a metering receipt status message.
+        Will return a dictionary with the following keys:
+        status  bool
+        """
+        message = {}
+        self.payloadReaderInitialize(data, len(data))
+        message['status'] = True if self.payloadReaderReadInt(1) == 1 else False
+
         self.payloadReaderFinalize()
         return message
 
@@ -1955,8 +2041,41 @@ class Whitebeet():
         sub_id_list.append(0x8A)
         sub_id_list.append(0x8B)
         sub_id_list.append(0x8C)
+        sub_id_list.append(0x8E)
+        sub_id_list.append(0x8F)
+        sub_id_list.append(0x90)
+        sub_id_list.append(0x91)
         response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 30)
         return response.sub_id, response.payload
+
+    def v2gEvseReceiveRequestSilent(self):
+        """
+        Receives a V2G request status message.
+        """
+        sub_id_list = []
+        sub_id_list.append(0x80)
+        sub_id_list.append(0x81)
+        sub_id_list.append(0x82)
+        sub_id_list.append(0x83)
+        sub_id_list.append(0x84)
+        sub_id_list.append(0x85)
+        sub_id_list.append(0x86)
+        sub_id_list.append(0x87)
+        sub_id_list.append(0x88)
+        sub_id_list.append(0x89)
+        sub_id_list.append(0x8A)
+        sub_id_list.append(0x8B)
+        sub_id_list.append(0x8C)
+        sub_id_list.append(0x8E)
+        sub_id_list.append(0x8F)
+        sub_id_list.append(0x90)
+        sub_id_list.append(0x91)
+        response = self._receiveSilent(self.v2g_mod_id, sub_id_list, 0x00, 0.1)
+        if response is not None:
+            return response.sub_id, response.payload
+        else:
+            return None, None
+
     def v2gEvReceiveRequest(self):
         """
         Receives a V2G request status message.
