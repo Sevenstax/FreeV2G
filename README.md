@@ -11,6 +11,9 @@
 FreeV2G is a reference implementation in python to control the 8DEVICES WHITE beet ISO15118 EI EVSE module. For more information about the WHITE beet module please visit https://www.codico.com/de/white-beet-ei-evse-embedded-iso15118-module. An evaulation board for this module can be found here:
 https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118.
 
+For Whitebeet EVSE firmware version >= 2.0.0 please checkout the plug and charge branch:
+https://github.com/Sevenstax/FreeV2G/tree/plug_and_charge
+
 ## FEATURES
 
 The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE beet. Other features are the WHITE beet class which answers the parameter requests of the WHITE beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
