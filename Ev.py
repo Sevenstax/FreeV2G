@@ -453,22 +453,34 @@ class Ev():
         self.battery.in_voltage = message['nominal_voltage']
         if self.battery.in_voltage >= self.battery.max_voltage_AC:
             print("Battert voltage out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
 
         # check target current
         self.currentAcMaxCurrent = message["max_current"]
         self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.currentAcMaxCurrent
         if self.battery.in_current >= self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
             print("Battery current out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
 
         # check power conditions
         if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
             print("Battery power out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
         
         if message["rcd"] == True:
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
             
 
     def _handleScheduleReceived(self, data):
