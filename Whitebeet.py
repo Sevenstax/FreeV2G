@@ -532,9 +532,8 @@ class Whitebeet():
             payload = b""
             payload += config["evid"]
             payload += config["protocol_count"].to_bytes(1, "big")
-            payload += int(0).to_bytes(1, "big")
-            if config["protocol_count"] == 2:
-                payload += int(1).to_bytes(1, "big")
+            for protocol in config["protocols"]:
+                payload += protocol.to_bytes(1, "big")
 
             payload += config["payment_method_count"].to_bytes(1, "big")
             for method in config["payment_method"]:
