@@ -100,6 +100,8 @@ class Ev():
         self.whitebeet.controlPilotSetMode(0)
         print("Start the CP service")
         self.whitebeet.controlPilotStart()
+        print("Set the CP state to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
         print("Set SLAC to EV mode")
         self.whitebeet.slacSetValidationConfiguration(0)
         print("Start SLAC")
@@ -206,8 +208,6 @@ class Ev():
 
         #print("Start V2G")
         #self.whitebeet.v2gStart()
-        print("Change State to State C")
-        self.whitebeet.controlPilotSetResistorValue(1)
         print("Create new charging session")
         self.whitebeet.v2gStartSession()
         self.state = "sessionStarting"
@@ -225,6 +225,8 @@ class Ev():
 
             elif self.state == "cableCheckReady":
                 try:
+                    print("Change State to State C")
+                    self.whitebeet.controlPilotSetResistorValue(1)
                     self.whitebeet.v2gStartCableCheck()
                     self.state = "cableCheckStarted"
                 except Warning as e:
@@ -281,6 +283,11 @@ class Ev():
                     try:
                         self.battery.is_charging = True
                         self.whitebeet.v2gStartCharging()
+
+                        # If we are charging in DC state C was already set prior to the cable check,
+                        # but if we are charging in AC we need to set the state C here.
+                        print("Change State to State C")
+                        self.whitebeet.controlPilotSetResistorValue(1)
                     except Warning as e:
                         print("Warning: {}".format(e))
                     except ConnectionError as e:
@@ -555,6 +562,8 @@ class Ev():
         """
         print("\"Charging Stopped\" received")
         self.state = "chargingStopped"
+        print("Change State to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
 
     def _handlePostChargingReady(self, data):
         """
@@ -586,6 +595,8 @@ class Ev():
         print("\"Session Stopped\" received")
         self.whitebeet.v2gEvParseSessionStopped(data)
         self.state = "sessionStopped"
+        print("Change State to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
     
     def _handleSessionError(self, data):
         """
