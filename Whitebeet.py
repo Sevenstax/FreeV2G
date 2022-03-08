@@ -784,7 +784,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["max_current"])
             payload += self._valueToExponential(parameter["max_power"])
 
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_update_ac_charging_parameters, payload)
 
     def v2gACGetChargingParameters(self, data):
         """
