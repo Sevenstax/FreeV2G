@@ -1726,6 +1726,7 @@ class Whitebeet():
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
+        message['closure_type'] = self.payloadReaderReadInt(1)
         self.payloadReaderFinalize()
         return message
 
