@@ -11,8 +11,22 @@
 FreeV2G is a reference implementation in python to control the 8DEVICES WHITE beet ISO15118 EI EVSE module. For more information about the WHITE beet module please visit https://www.codico.com/de/white-beet-ei-evse-embedded-iso15118-module. An evaulation board for this module can be found here:
 https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118.
 
-For Whitebeet EVSE firmware version >= 2.0.0 please checkout the plug and charge branch:
+For **Whitebeet EVSE firmware version >= 2.0.0** please checkout the plug and charge branch:
 https://github.com/Sevenstax/FreeV2G/tree/plug_and_charge
+
+The following table has information about the relationship between Whitebeet EVSE firmware versions and FreeV2G.
+
+| Whitebeet Version | FreeV2G Tag |
+| - | - |
+| V01_01_06 | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/releases/tag/EVSE_v1.1.6_1) |
+| V01_01_07 | [EVSE_v1.1.7_0](https://github.com/Sevenstax/FreeV2G/releases/tag/EVSE_v1.1.7_0) |
+| V02_00_00 | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/releases/tag/EVSE_v2.0.0_0) |
+
+The following table has information about the relationship between Whitebeet EV firmware and FreeV2G for EV.
+
+| Whitebeet Version | FreeV2G Tag |
+| - | - |
+| V01_00_04 | [EVSE_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/releases/tag/EV_v1.0.4_0) |
 
 ## FEATURES
 
