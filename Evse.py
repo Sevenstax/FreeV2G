@@ -256,6 +256,16 @@ class Evse():
                 print("Warning: {}".format(e))
             except ConnectionError as e:
                 print("ConnectionError: {}".format(e))
+        elif 'ac' in message:
+            rcd_status = True
+            nominal_voltage = int(self.charger.getEvseMaxVoltage())
+            max_current = int(self.charger.getEvseMaxCurrent())
+            try:
+                self.whitebeet.v2gSetAcDiscoveryChargeParameters(0, rcd_status, nominal_voltage, max_current)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
 
     def _handleRequestSchedules(self, data):
         """
@@ -347,12 +357,20 @@ class Evse():
                 print("Charging complete: {}".format(message['dc']['charging_complete']))
             if 'bulk_charging_complete' in message['dc']:
                 print("Bulk charging complete: {}".format(message['dc']['bulk_charging_complete']))
-        try:
-            self.whitebeet.v2gSetDcStartChargingStatus(0, 1)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+            try:
+                self.whitebeet.v2gSetDcStartChargingStatus(0, 1)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
+        elif 'ac' in message:
+            rcd_status = True
+            try:
+                self.whitebeet.v2gSetAcStartChargingStatus(0, rcd_status)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
 
     def _handleRequestChargeLoopParameters(self, data):
         """
@@ -382,21 +400,30 @@ class Evse():
                 print("Remaining time to full SOC: {}s".format(message['dc']['remaining_time_to_full_soc']))
             if 'remaining_time_to_bulk_soc' in message['dc']:
                 print("Remaining time to bulk SOC: {}s".format(message['dc']['remaining_time_to_bulk_soc']))
-        present_voltage = int(self.charger.getEvsePresentVoltage())
-        present_current = int(self.charger.getEvsePresentCurrent())
-        present_power = int(present_current * present_voltage)
-        max_current = int(self.charger.getEvseMaxCurrent())
-        max_voltage = int(self.charger.getEvseMaxVoltage())
-        max_power = int(self.charger.getEvseMaxPower())
-        max_current_reached = present_current >= max_current
-        max_voltage_reached = present_voltage >= max_voltage
-        max_power_reached = present_power >= max_power
-        try:
-            self.whitebeet.v2gSetDcChargeLoopParameters(0, 1, present_voltage, present_current, max_current, max_voltage, max_power, max_current_reached, max_voltage_reached, max_power_reached)
-        except Warning as e:
-            print("Warning: {}".format(e))
-        except ConnectionError as e:
-            print("ConnectionError: {}".format(e))
+            present_voltage = int(self.charger.getEvsePresentVoltage())
+            present_current = int(self.charger.getEvsePresentCurrent())
+            present_power = int(present_current * present_voltage)
+            max_current = int(self.charger.getEvseMaxCurrent())
+            max_voltage = int(self.charger.getEvseMaxVoltage())
+            max_power = int(self.charger.getEvseMaxPower())
+            max_current_reached = present_current >= max_current
+            max_voltage_reached = present_voltage >= max_voltage
+            max_power_reached = present_power >= max_power
+            try:
+                self.whitebeet.v2gSetDcChargeLoopParameters(0, 1, present_voltage, present_current, max_current, max_voltage, max_power, max_current_reached, max_voltage_reached, max_power_reached)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
+        if 'ac' in message:
+            max_current = int(self.charger.getEvseMaxCurrent())
+            rcd_status = True
+            try:
+                self.whitebeet.v2gSetAcChargeLoopParameters(0, max_current, rcd_status)
+            except Warning as e:
+                print("Warning: {}".format(e))
+            except ConnectionError as e:
+                print("ConnectionError: {}".format(e))
 
     def _handleRequestPostChargeParameters(self, data):
         """
