@@ -1346,6 +1346,45 @@ class Whitebeet():
                         payload += b"\x00"
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_discovery_charge_params, payload)
 
+    def v2gSetAcDiscoveryChargeParameters(self, code, rcd_status, nominal_voltage, max_current):
+        """
+        Sets the discovery charge parameters.
+        If code is set to 1 or 2, all other parameters can be set to None
+        """
+        codes_allowed = [0, 1, 2]
+        if isinstance(code, int) == False:
+            raise ValueError("Parameter code needs to be of type int")
+        elif code not in codes_allowed:
+            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
+        else:
+            payload = code.to_bytes(1, "big")
+            if code == 0:
+                if isinstance(rcd_status, boolean) == False:
+                    raise ValueError("Parameter RCD status needs to be of type boolean")
+                elif not isinstance(nominal_voltage, int) and not (isinstance(nominal_voltage, tuple) and len(nominal_voltage) == 2):
+                    raise ValueError("Parameter nominal voltage needs to be of type int or tuple with length 2")
+                elif not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
+                    raise ValueError("Parameter max current needs to be of type int or tuple with length 2")
+                else:
+                    payload += b"\x01"
+                    if rcd_status:
+                        payload += b"\x01"
+                    else:
+                        payload += b"\x00"
+                    if isinstance(nominal_voltage, int):
+                        payload += nominal_voltage.to_bytes(2, "big")
+                        payload += b"\x00"
+                    else:
+                        payload += nominal_voltage[0].to_bytes(2, "big")
+                        payload += nominal_voltage[1].to_bytes(1, "big")
+                    if isinstance(max_current, int):
+                        payload += max_current.to_bytes(2, "big")
+                        payload += b"\x00"
+                    else:
+                        payload += max_current[0].to_bytes(2, "big")
+                        payload += max_current[1].to_bytes(1, "big")
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_discovery_charge_params, payload)
+
     def v2gSetSchedules(self, code, schedule):
         """
         Sets the discovery charge parameters.
@@ -1479,6 +1518,29 @@ class Whitebeet():
                     payload += isolation_level.to_bytes(1, "big")
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_start_charging_status, payload)
 
+    def v2gSetAcStartChargingStatus(self, code, rcd_status):
+        """
+        Sets the start charging status.
+        If code is set to 1, all other parameters can be set to None
+        """
+        codes_allowed = [0, 1]
+        if isinstance(code, int) == False:
+            raise ValueError("Parameter code needs to be of type int")
+        elif code not in codes_allowed:
+            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
+        else:
+            payload = code.to_bytes(1, "big")
+            if code == 0:
+                if isinstance(rcd_status, boolean) == False:
+                    raise ValueError("Parameter rcd status needs to be of type boolean")
+                else:
+                    payload += b"\x01"
+                    if rcd_status:
+                        payload += b"\x01"
+                    else:
+                        payload += b"\x00"
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_start_charging_status, payload)
+
     def v2gSetDcChargeLoopParameters(self, code, isolation_level, present_voltage, present_current, max_current, max_voltage, max_power, max_current_reached, max_voltage_reached, max_power_reached):
         """
         Sets the pre charge parameters.
@@ -1552,6 +1614,38 @@ class Whitebeet():
                     else:
                         payload += b"\x00"
                     if max_power_reached:
+                        payload += b"\x01"
+                    else:
+                        payload += b"\x00"
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_set_charge_loop_params, payload)
+
+    def v2gSetAcChargeLoopParameters(self, code, max_current, rcd_status):
+        """
+        Sets the pre charge parameters.
+        If code is set to 1 or 2, all other parameters can be set to None
+        """
+        codes_allowed = [0, 1, 2]
+        if isinstance(code, int) == False:
+            raise ValueError("Parameter code needs to be of type int")
+        elif code not in codes_allowed:
+            raise ValueError("Parameter code not in valid range {}".format(codes_allowed))
+        else:
+            payload = code.to_bytes(1, "big")
+            if code == 0:
+                if not isinstance(max_current, int) and not (isinstance(max_current, tuple) and len(max_current) == 2):
+                    raise ValueError("Parameter max current needs to be of type int or tuple with length 2")
+                if isinstance(rcd_status, boolean) == False:
+                    raise ValueError("Parameter rcd status needs to be of type boolean")
+                else:
+                    payload += b"\x01"
+                    payload += b"\x01"
+                    if isinstance(max_current, int):
+                        payload += max_current.to_bytes(2, "big")
+                        payload += b"\x00"
+                    else:
+                        payload += max_current[0].to_bytes(2, "big")
+                        payload += max_current[1].to_bytes(1, "big")
+                    if rcd_status:
                         payload += b"\x01"
                     else:
                         payload += b"\x00"
@@ -1830,6 +1924,8 @@ class Whitebeet():
                 message['dc']['charging_complete'] = (self.payloadReaderReadInt(1) != 0)
             if self.payloadReaderReadInt(1) != 0:
                 message['dc']['bulk_charging_complete'] = (self.payloadReaderReadInt(1) != 0)
+        elif message['type'] == 1:
+            message['ac'] = {}
         self.payloadReaderFinalize()
         return message
 
@@ -1882,7 +1978,6 @@ class Whitebeet():
         if message['type'] == 1:
             # AC parameters empty
             message['ac'] = {}
-            pass
         self.payloadReaderFinalize()
         return message
 
