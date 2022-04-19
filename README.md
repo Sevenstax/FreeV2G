@@ -29,6 +29,8 @@ The following table has information about the relationship between Whitebeet EV 
 | - | - |
 | V01_00_04 | [EVSE_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
 
+Actual Whitebeet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
+
 ## FEATURES
 
 The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE beet. Other features are the WHITE beet class which answers the parameter requests of the WHITE beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
