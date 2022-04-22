@@ -390,7 +390,8 @@ class Ev():
                 else:
                     print("Message ID not supported: {:02x}".format(id))
                     break
-            except:
+            except Exception as e:
+                print(e)
                 pass
             
         self.whitebeet.controlPilotSetResistorValue(0)
