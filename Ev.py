@@ -432,6 +432,16 @@ class Ev():
         print("\tEVSE present voltage: {}".format(message['evse_present_voltage']))
         print("\tEVSE present current: {}".format(message['evse_present_current']))
         print("\tEVSE status: {}".format(message['evse_status']))
+        if 'evse_isolation_status' in message:
+            print("\tEVSE isolation status: {}".format(message['evse_isolation_status']))
+        print("\tEVSE voltage limit achieved: {}".format(message['evse_voltage_limit_achieved']))
+        print("\tEVSE current limit achieved: {}".format(message['evse_current_limit_achieved']))
+        print("\tEVSE power limit achieved: {}".format(message['evse_power_limit_achieved']))
+        print("\tEVSE peak current ripple: {}".format(message['evse_peak_current_ripple']))
+        if 'evse_current_regulation_tolerance' in message:
+            print("\tEVSE current regualtion tolerance: {}".format(message['evse_current_regulation_tolerance']))
+        if 'evse_energy_to_be_delivered' in message:
+            print("\tEVSE energy to be delivered: {}".format(message['evse_energy_to_be_delivered']))
         
         if message["evse_status"] != 0:
             self.battery.is_charging = False
