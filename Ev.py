@@ -390,6 +390,9 @@ class Ev():
                 else:
                     print("Message ID not supported: {:02x}".format(id))
                     break
+            except TimeoutError:
+                # In case we did not receive a request, we try again
+                pass
             except Exception as e:
                 print(e)
                 pass
