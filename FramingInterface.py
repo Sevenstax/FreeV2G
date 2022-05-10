@@ -220,28 +220,30 @@ class FramingInterface():
                 satisfied = False
 
             if timeout == 0:
-                self.frame_backlog += temp_backlog
                 if satisfied == False:
                     frame = None
 
                 if self.sut_adapter.holding_data():
                     continue
 
-                break
+                if len(self.frame_backlog) == 0 or search_backlog == False:
+                    break
 
-            if time.time() > timeout_point:
-                self.frame_backlog += temp_backlog
+            elif time.time() > timeout_point:
+                self.frame_backlog = temp_backlog + self.frame_backlog
                 debug_log("Im over timeout {}: timeout_point is {} and i am {}".format(
                     str(timeout), str(timeout_point), str(time.time())))
 
                 if noisy_timeout:
                     raise AssertionError("Frame reception timed out")
-                    return None
                 else:
                     return None
 
+            else:
+                # Timeout not exceeded, continue
+                pass
 
-        self.frame_backlog += temp_backlog
+        self.frame_backlog = temp_backlog + self.frame_backlog
         return frame
 
     def send_frame_and_get_answer(self, module_id, sub_id, payload, timeout=5,
