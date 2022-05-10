@@ -505,6 +505,7 @@ class Evse():
             '20': 'Contactor error',
             '21': 'Certificate not allowed at this EVSE',
             '22': 'Certificate revoked',
+            '23': "Charge parameter timeout reached"
         }
 
         print('Session error: {}: {}'.format(message['error_code'], error_messages[message['error_code']]))
