@@ -181,27 +181,26 @@ class FramingInterface():
                     # debug_log(self.printable_frame(frame))
 
             if frame is not None:
-                # convert ids to lists for backwards compatibility
-                if filter_req_id and isinstance(filter_req_id, int):
-                    id_temp = filter_req_id
-                    filter_req_id = list()
-                    filter_req_id.append(id_temp)
-                if filter_mod and isinstance(filter_mod, int):
-                    id_temp = filter_mod
-                    filter_mod = list()
-                    filter_mod.append(id_temp)
-                if filter_sub and isinstance(filter_sub, int):
-                    id_temp = filter_sub
-                    filter_sub = list()
-                    filter_sub.append(id_temp)
+                if filter_req_id is not None:
+                    # Filter for request ID
+                    if isinstance(filter_req_id, int):
+                        filter_req_id = [filter_req_id]
+                    if frame.req_id not in filter_req_id:
+                        satisfied = False
 
-                # got frame, apply filters
-                if filter_req_id and not frame.req_id in filter_req_id:
-                    satisfied = False
-                if filter_mod and not frame.mod_id in filter_mod:
-                    satisfied = False
-                if filter_sub and not frame.sub_id in filter_sub:
-                    satisfied = False
+                if filter_mod is not None:
+                    # Filter for module ID
+                    if isinstance(filter_mod, int):
+                        filter_mod = [filter_mod]
+                    if frame.mod_id not in filter_mod:
+                        satisfied = False
+
+                if filter_sub is not None:
+                    # Filter for sub ID
+                    if isinstance(filter_sub, int):
+                        filter_sub = [filter_sub]
+                    if frame.sub_id not in filter_sub:
+                        satisfied = False
 
                 # for backwards compatibility
                 if frame.sub_id > 127:
