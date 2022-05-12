@@ -1,13 +1,15 @@
 import multiprocessing
 import time
 import sys
+from platform import system as system_type
 from scapy.all import *
 from scapy.layers.l2 import Ether, getmacbyip, sendp
 
 from SUTAdapter import *
 from FramingAPIDef import *
 
-socket = None
+if system_type() == "Linux":
+    from pylibpcap.base import Sniff
 
 class EthernetAdapter(SUTAdapter):
     def __init__(self):
@@ -19,20 +21,22 @@ class EthernetAdapter(SUTAdapter):
         self.sut_interface = ""
         self.dut_mac = None
         self.packet = None
+        self.socket = None
         conf.use_pcap=True
-
-        self.holy_buffer = []
 
 
     """
     send data
     """
     def send(self, data):
-        global socket
-        if len(data) > 1492:
+        if len(data) > 1450:
             print("Alert: Sending large frame")
 
-        socket.send(self.packet/(b"\x00\x04" + len(data).to_bytes(2, "big") + data))
+        if system_type() == "Linux":
+            self.socket.send(self.packet/(b"\x00\x04" + len(data).to_bytes(2, "big") + data))
+        else:
+            global socket
+            socket.send(self.packet/(b"\x00\x04" + len(data).to_bytes(2, "big") + data))
 
 
     """
@@ -49,7 +53,11 @@ class EthernetAdapter(SUTAdapter):
     packet callback for our custom ethernet type
     """
     def pkt_callback(self, packet):
-        payload = packet[Ether].load[4:]
+        if system_type() == "Linux":
+            payload = Ether(packet)[Ether].load[4:]
+        else:
+            payload = packet[Ether].load[4:]
+
         seqno = 0
 
         # check for input on uart
@@ -89,14 +97,18 @@ class EthernetAdapter(SUTAdapter):
     filter packets with custom ethernet type
     """
     def process_receive(self):
-        sniff(filter='ether proto 0x6003 and ether src ' + self.dut_mac, iface=self.sut_interface,
+        if system_type() == "Linux":
+            sniffobj = Sniff(self.sut_interface, filters="ether proto 0x6003 and ether src " + self.dut_mac, promisc=1)
+            for plen, t, buf in sniffobj.capture():
+                self.pkt_callback(buf)
+        else:
+            sniff(filter='ether proto 0x6003 and ether src ' + self.dut_mac, iface=self.sut_interface,
                 prn=self.pkt_callback)
 
     """
     start process waiting for mac frames of specific ethernet type
     """
     def start(self):
-        global socket
 
         self.recv_process = multiprocessing.Process(target=self.process_receive)
 
@@ -105,15 +117,18 @@ class EthernetAdapter(SUTAdapter):
         while self.dut_mac == None and time.time() < end_time:
             self.dut_mac = getmacbyip(self.sut_ip)
 
-        socket = conf.L2socket(iface=self.sut_interface)
-        self.packet = Ether(dst=self.dut_mac, type=0x6003)
-
         if self.dut_mac == None:
-            print("[!] Could not determine target MAC address from IP")
-            sys.exit(1)
+            raise AssertionError("[]!] Could not determine target MAC address from IP")
+
+        if system_type() == "Linux":
+            self.socket = conf.L2socket(iface=self.sut_interface)
+            self.packet = Ether(src=get_if_hwaddr(self.sut_interface), dst=self.dut_mac, type=0x6003)
+        else:
+            global socket
+            socket = conf.L2socket(iface=self.sut_interface)
+            self.packet = Ether(dst=self.dut_mac, type=0x6003)
 
         self.recv_process.start()
-        #self.process_receive()
 
         """
         sleep - letting sniffing process initialize
@@ -138,4 +153,3 @@ class EthernetAdapter(SUTAdapter):
     def clear_queues(self):
         while not self.queue_rx.empty():
             msg = self.queue_rx.get_nowait()
-
