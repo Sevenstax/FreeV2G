@@ -482,30 +482,30 @@ class Evse():
         self.charger.stop()
 
         error_messages = {
-            '0': 'Unspecified',
-            '1': 'Sequence error',
-            '2': 'Service ID invalid',
-            '3': 'Unknown session',
-            '4': 'Service selection invalid',
-            '5': 'Payment selection invalid',
-            '6': 'Certificate expired',
-            '7': 'Signature Error',
-            '8': 'No certificate available',
-            '9': 'Certificate chain error',
-            '10': 'Challenge invalid',
-            '11': 'Contract canceled',
-            '12': 'Wrong charge parameter',
-            '13': 'Power delivery not applied',
-            '14': 'Tariff selection invalid',
-            '15': 'Charging profile invalid',
-            '16': 'Present voltage too low',
-            '17': 'Metering signature not valid',
-            '18': 'No charge service selected',
-            '19': 'Wrong energy transfer type',
-            '20': 'Contactor error',
-            '21': 'Certificate not allowed at this EVSE',
-            '22': 'Certificate revoked',
-            '23': "Charge parameter timeout reached"
+            0: 'Unspecified',
+            1: 'Sequence error',
+            2: 'Service ID invalid',
+            3: 'Unknown session',
+            4: 'Service selection invalid',
+            5: 'Payment selection invalid',
+            6: 'Certificate expired',
+            7: 'Signature Error',
+            8: 'No certificate available',
+            9: 'Certificate chain error',
+            10: 'Challenge invalid',
+            11: 'Contract canceled',
+            12: 'Wrong charge parameter',
+            13: 'Power delivery not applied',
+            14: 'Tariff selection invalid',
+            15: 'Charging profile invalid',
+            16: 'Present voltage too low',
+            17: 'Metering signature not valid',
+            18: 'No charge service selected',
+            19: 'Wrong energy transfer type',
+            20: 'Contactor error',
+            21: 'Certificate not allowed at this EVSE',
+            22: 'Certificate revoked',
+            23: 'Charge parameter timeout reached'
         }
 
         print('Session error: {}: {}'.format(message['error_code'], error_messages[message['error_code']]))
@@ -513,8 +513,10 @@ class Evse():
             self.whitebeet.v2gEvseStopCharging()
         except Warning as e:
             print("Warning: {}".format(e))
+            self.whitebeet.v2gEvseStopListen()
         except ConnectionError as e:
             print("ConnectionError: {}".format(e))
+            self.whitebeet.v2gEvseStopListen()
 
     def _handleCertificateInstallationRequested(self, data):
         """
