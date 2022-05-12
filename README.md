@@ -19,7 +19,7 @@ The following table has information about the relationship between Whitebeet EVS
 | Whitebeet Version | FreeV2G Tag |
 | - | - |
 | V01_01_06 | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
-| V01_01_07 | [EVSE_v1.1.7_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_0) |
+| V01_01_07 | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
 | V02_00_00 | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
 | V02_00_01 | [EVSE_v2.0.1_2](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_2) |
 
