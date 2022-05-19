@@ -1664,16 +1664,9 @@ class Whitebeet():
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_meter_receipt, payload)
 
     def v2gEvseSendNotification(self, renegotiation, timeout):
-        if not isinstance(renegotiation, bool):
-            raise ValueError('renegotiation needs to be of type bool')
-        elif not (isinstance(timeout, int) or (0 < timeout < 2**32)):
-            raise ValueError('timeout needs to be of type int with range 0 to {}'.format(2**32))
-        else:
-            payload = b''
-            payload += b'\x01' if renegotiation == True else b'\x00'
-            payload += timeout.to_bytes(4, 'big')
-
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_send_notification, payload)
+        payload = struct.pack("!?", renegotiation)
+        payload += struct.pack("!H", timeout)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_send_notification, payload)
 
     def v2gEvseParseSessionStarted(self, data):
         """
