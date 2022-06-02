@@ -8,7 +8,7 @@ from FramingInterface import *
 
 class Whitebeet():
 
-    def __init__(self, iface, mac):
+    def __init__(self, iftype, iface, mac):
         self.logger = Logger()
 
         self.connectionError = False
@@ -94,12 +94,16 @@ class Whitebeet():
 
         # Initialization of the framing interface
         self.framing = FramingInterface()
-        self.framing.sut_mac = mac
-        self.framing.sut_interface = iface
+        iftype =  iftype.upper()
 
         try:
-            self.framing.initialize_framing()
-            log("iface: {}, mac: {}".format(iface, mac))
+            if iftype == 'ETH':
+                self.framing.initialize_framing(iftype, iface, mac)
+                log("iface: {}, name: {}, mac: {}".format(iftype, iface, mac))
+            else:
+                self.framing.initialize_framing(iftype, iface, None)
+                log("iface: {}, name: {}".format(iftype, iface))
+
             self.framing.clear_backlog()
             self.slacStop()
             self.controlPilotStop()

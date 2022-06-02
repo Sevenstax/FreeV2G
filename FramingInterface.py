@@ -3,7 +3,6 @@ import sys
 from multiprocessing import Process, Manager
 from binascii import hexlify, unhexlify
 
-import EthernetAdapter
 from FramingAPIDef import *
 
 sys.path.append("..")
@@ -18,7 +17,7 @@ class FramingInterface():
         self.encryption_configured = False
         self.encryption_initiated = False
 
-        self.connection_mode = "ETHERNET"
+        self.connection_mode = ""
         self.limited_host_simulation = False
         self.sut_ip = ""
         self.sut_mac = ""
@@ -47,18 +46,22 @@ class FramingInterface():
     """
     top level function for initializing the SUT adapter for framing
     """
-    def initialize_framing(self):
+    def initialize_framing(self, if_type, if_name, mac):
         """Top level function for initializing the SUT adapter for framing
         """
-        if self.connection_mode == "ETHERNET":
+        self.connection_mode = if_type
+        if self.connection_mode == "ETH":
+            import EthernetAdapter
             self.sut_adapter = EthernetAdapter.EthernetAdapter()
-
-        if self.sut_mac != "":
-            self.sut_adapter.dut_mac = self.sut_mac
+            if mac:
+                self.sut_adapter.dut_mac = mac
+        elif self.connection_mode == "SPI":
+            import SpiAdapter
+            self.sut_adapter = SpiAdapter.SpiAdapter()
         else:
-            self.sut_adapter.sut_ip = self.sut_ip
+            raise AssertionError("Invalid interface!")
 
-        self.sut_adapter.sut_interface = self.sut_interface
+        self.sut_adapter.sut_interface = if_name
 
         self.sut_adapter.start()
 
@@ -76,7 +79,7 @@ class FramingInterface():
             return self.sut_adapter.receive()
 
     def reload_communication_interface(self):
-        if self.connection_mode == "ETHERNET":
+        if self.connection_mode == "ETH":
             self.reload_eth_interface()
 
     """

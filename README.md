@@ -49,7 +49,7 @@ Make sure that EVSE and EV are not physically connected on the PLC interface.
 Run the Application by typing (it is necessary to provide actual STM32 ETH MAC address printed out on the label of Evaluation board)
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:22:22:22 -r EVSE
+$ python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
 ```
 
 You should see the following output
@@ -146,7 +146,7 @@ Goodbye!
 Run the application in EV mode by typing
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:33:33:33 -r EV
+$ python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV
 ```
 
 ## Configuration file
@@ -158,7 +158,7 @@ You can set the configuration via a configuration file in json format.
 Run the application with configuration file
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
+$ python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
 ```
 
 If no path is given the configuration file defaults to ./ev.json. An example configuration can be found in ev.json.

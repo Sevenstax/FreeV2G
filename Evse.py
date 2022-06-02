@@ -4,8 +4,8 @@ from Charger import *
 
 class Evse():
 
-    def __init__(self, iface, mac):
-        self.whitebeet = Whitebeet(iface, mac)
+    def __init__(self, iftype, iface, mac):
+        self.whitebeet = Whitebeet(iftype, iface, mac)
         self.charger = Charger()
         self.schedule = None
         self.evse_config = None

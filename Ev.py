@@ -7,9 +7,9 @@ from Battery import *
 
 class Ev():
 
-    def __init__(self, iface, mac):
+    def __init__(self, iftype, iface, mac):
         self.logger = Logger()
-        self.whitebeet = Whitebeet(iface, mac)
+        self.whitebeet = Whitebeet(iftype, iface, mac)
 
         self.battery = Battery()
 
