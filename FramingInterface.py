@@ -231,7 +231,7 @@ class FramingInterface():
                 if len(self.frame_backlog) == 0 or search_backlog == False:
                     break
 
-            elif time.time() > timeout_point:
+            elif time.time() > timeout_point and not satisfied:
                 self.frame_backlog = temp_backlog + self.frame_backlog
                 debug_log("Im over timeout {}: timeout_point is {} and i am {}".format(
                     str(timeout), str(timeout_point), str(time.time())))
