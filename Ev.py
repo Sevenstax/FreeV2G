@@ -398,7 +398,11 @@ class Ev():
                 pass
             
         self.whitebeet.controlPilotSetResistorValue(0)
-        self.whitebeet.v2gStop()
+        try:
+            self.whitebeet.v2gStopSession()
+        except Exception as e:
+            # Session was already stopped
+            pass
 
     def _handleSessionStarted(self, data):
         """

@@ -98,7 +98,6 @@ class Whitebeet():
             self.framing.initialize_framing()
             log("iface: {}, mac: {}".format(iface, mac))
             self.framing.clear_backlog()
-            self.v2gStop()
             self.slacStop()
             self.controlPilotStop()
         except:
@@ -117,7 +116,6 @@ class Whitebeet():
     def _shutdown(self):
         if self.framing.isInitialized() == True:
             if self.connectionError == False:
-                self.v2gStop()
                 self.slacStop()
                 self.controlPilotStop()
             self.framing.shut_down_interface()
