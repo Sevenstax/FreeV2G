@@ -29,6 +29,7 @@ The following table has information about the relationship between Whitebeet EV 
 | - | - |
 | V01_00_04 | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
 | V01_00_05 | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
+| V01_00_06 | [EV_v1.0.6_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_0) |
 
 Actual Whitebeet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
 
