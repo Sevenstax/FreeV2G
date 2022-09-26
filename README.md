@@ -8,7 +8,9 @@
 
 ## INTRODUCTION
 
-FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV module. For more information about the WHITE-beet modules please visit https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module and https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module pages. 
+FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using Ethernet host control interface (HCI).
+
+For detailed information about the WHITE-beet modules please visit https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module and https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module pages. 
 Evaulation boards for the modules can be found https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev and https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack.
 
 For **Whitebeet EVSE firmware version >= 2.0.0** please checkout the plug and charge branch:
