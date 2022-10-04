@@ -1621,7 +1621,7 @@ class Whitebeet():
         else:
             payload = b''
             payload += response['status'].to_bytes(1, 'big')
-            payload += response['exi_response'].to_bytes(len(response['exi_response'], 'big'))
+            payload += response['exi_response'].to_bytes(len(response['exi_response']), 'big')
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_cable_certificate_installation_and_update_response, payload)
 
     def v2gEvseSetMeterReceiptRequest(self, receipt):
