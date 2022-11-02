@@ -191,7 +191,7 @@ class Ev():
         print("Set V2G mode to EV")
         self.whitebeet.v2gSetMode(0)
         print("Set V2G configuration")
-        self.whitebeet.v2gSetConfiguration(self.config)
+        self.whitebeet.v2gEvSetConfiguration(self.config)
 
         # DC 
         if any((True for x in [0, 1, 2, 3] if x in self.config['energy_transfer_mode'])):
