@@ -6,6 +6,7 @@ class Evse():
 
     def __init__(self, iftype, iface, mac):
         self.whitebeet = Whitebeet(iftype, iface, mac)
+        print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
         self.charger = Charger()
         self.schedule = None
         self.evse_config = None
@@ -28,6 +29,7 @@ class Evse():
         to 100%. The SLAC module is also started. This one needs ~1s to 2s to be ready.
         Therefore we delay the initialization by 2s.
         """
+
         print("Set the CP mode to EVSE")
         self.whitebeet.controlPilotSetMode(1)
         print("Set the CP duty cycle to 100%")

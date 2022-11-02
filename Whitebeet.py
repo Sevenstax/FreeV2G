@@ -16,6 +16,10 @@ class Whitebeet():
         self.payloadBytesRead = 0
         self.payloadBytesLen = 0
 
+        # System sub IDs
+        self.sys_mod_id = 0x10
+        self.sys_sub_get_firmware_version = 0x41
+
         # Network configuration IDs
         self.netconf_sub_id = 0x05
         self.netconf_set_port_mirror_state = 0x55
@@ -105,6 +109,7 @@ class Whitebeet():
                 log("iface: {}, name: {}".format(iftype, iface))
 
             self.framing.clear_backlog()
+            self.version = self.systemGetVersion()
             self.slacStop()
             self.controlPilotStop()
             if self.v2gGetMode() == 1:
@@ -293,6 +298,15 @@ class Whitebeet():
         """
         if self.payloadBytesRead != self.payloadBytesLen:
             raise Warning("More payload than expected! (read: {}, length: {})".format(self.payloadBytesRead, self.payloadBytesLen))
+
+    def systemGetVersion(self):
+        """
+        Retrives the firmware version in the form x.x.x
+        """
+        response = self._sendReceiveAck(self.sys_mod_id, self.sys_sub_get_firmware_version, None)
+        self.payloadReaderInitialize(response.payload, response.payload_len)
+        version_length = self.payloadReaderReadInt(2)
+        return self.payloadReaderReadBytes(version_length).decode("utf-8")
 
     def controlPilotSetMode(self, mode):
         """
