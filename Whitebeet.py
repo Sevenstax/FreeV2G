@@ -107,6 +107,8 @@ class Whitebeet():
             self.framing.clear_backlog()
             self.slacStop()
             self.controlPilotStop()
+            if self.v2gGetMode() == 1:
+                self.v2gEvseStopListen()
         except:
             self.connectionError = True
             raise ConnectionError("Failed to initialize the framing interface on \"{}\"".format(self.framing.sut_interface))
@@ -123,7 +125,8 @@ class Whitebeet():
     def _shutdown(self):
         if self.framing.isInitialized() == True:
             if self.connectionError == False:
-                self.v2gEvseStopListen()
+                if self.v2gGetMode() == 1:
+                    self.v2gEvseStopListen()
                 self.slacStop()
                 self.controlPilotStop()
             self.framing.shut_down_interface()
