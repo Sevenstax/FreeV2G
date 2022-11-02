@@ -548,9 +548,8 @@ class Whitebeet():
             payload = b""
             payload += config["evid"]
             payload += config["protocol_count"].to_bytes(1, "big")
-            payload += int(0).to_bytes(1, "big")
-            if config["protocol_count"] == 2:
-                payload += int(1).to_bytes(1, "big")
+            for protocol in config["protocols"]:
+                payload += protocol.to_bytes(1, "big")
 
             payload += config["payment_method_count"].to_bytes(1, "big")
             for method in config["payment_method"]:
@@ -936,6 +935,16 @@ class Whitebeet():
         message['evse_present_voltage'] = self.payloadReaderReadExponential()
         message['evse_present_current'] = self.payloadReaderReadExponential()
         message['evse_status'] = self.payloadReaderReadInt(1)
+        if self.payloadReaderReadInt(1) != 0:
+            message['evse_isolation_status'] = self.payloadReaderReadInt(1)
+        message['evse_voltage_limit_achieved'] = self.payloadReaderReadInt(1)
+        message['evse_current_limit_achieved'] = self.payloadReaderReadInt(1)
+        message['evse_power_limit_achieved'] = self.payloadReaderReadInt(1)
+        message['evse_peak_current_ripple'] = self.payloadReaderReadExponential()
+        if self.payloadReaderReadInt(1) != 0:
+            message['evse_current_regulation_tolerance'] = self.payloadReaderReadExponential()
+        if self.payloadReaderReadInt(1) != 0:
+            message['evse_energy_to_be_delivered'] = self.payloadReaderReadExponential()
         self.payloadReaderFinalize()
         return message
     

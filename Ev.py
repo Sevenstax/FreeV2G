@@ -100,6 +100,8 @@ class Ev():
         self.whitebeet.controlPilotSetMode(0)
         print("Start the CP service")
         self.whitebeet.controlPilotStart()
+        print("Set the CP state to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
         print("Set SLAC to EV mode")
         self.whitebeet.slacSetValidationConfiguration(0)
         print("Start SLAC")
@@ -206,8 +208,6 @@ class Ev():
 
         #print("Start V2G")
         #self.whitebeet.v2gStart()
-        print("Change State to State C")
-        self.whitebeet.controlPilotSetResistorValue(1)
         print("Create new charging session")
         self.whitebeet.v2gStartSession()
         self.state = "sessionStarting"
@@ -225,6 +225,8 @@ class Ev():
 
             elif self.state == "cableCheckReady":
                 try:
+                    print("Change State to State C")
+                    self.whitebeet.controlPilotSetResistorValue(1)
                     self.whitebeet.v2gStartCableCheck()
                     self.state = "cableCheckStarted"
                 except Warning as e:
@@ -281,6 +283,11 @@ class Ev():
                     try:
                         self.battery.is_charging = True
                         self.whitebeet.v2gStartCharging()
+
+                        # If we are charging in DC state C was already set prior to the cable check,
+                        # but if we are charging in AC we need to set the state C here.
+                        print("Change State to State C")
+                        self.whitebeet.controlPilotSetResistorValue(1)
                     except Warning as e:
                         print("Warning: {}".format(e))
                     except ConnectionError as e:
@@ -383,11 +390,19 @@ class Ev():
                 else:
                     print("Message ID not supported: {:02x}".format(id))
                     break
-            except:
+            except TimeoutError:
+                # In case we did not receive a request, we try again
+                pass
+            except Exception as e:
+                print(e)
                 pass
             
         self.whitebeet.controlPilotSetResistorValue(0)
-        self.whitebeet.v2gStop()
+        try:
+            self.whitebeet.v2gStopSession()
+        except Exception as e:
+            # Session was already stopped
+            pass
 
     def _handleSessionStarted(self, data):
         """
@@ -424,6 +439,16 @@ class Ev():
         print("\tEVSE present voltage: {}".format(message['evse_present_voltage']))
         print("\tEVSE present current: {}".format(message['evse_present_current']))
         print("\tEVSE status: {}".format(message['evse_status']))
+        if 'evse_isolation_status' in message:
+            print("\tEVSE isolation status: {}".format(message['evse_isolation_status']))
+        print("\tEVSE voltage limit achieved: {}".format(message['evse_voltage_limit_achieved']))
+        print("\tEVSE current limit achieved: {}".format(message['evse_current_limit_achieved']))
+        print("\tEVSE power limit achieved: {}".format(message['evse_power_limit_achieved']))
+        print("\tEVSE peak current ripple: {}".format(message['evse_peak_current_ripple']))
+        if 'evse_current_regulation_tolerance' in message:
+            print("\tEVSE current regualtion tolerance: {}".format(message['evse_current_regulation_tolerance']))
+        if 'evse_energy_to_be_delivered' in message:
+            print("\tEVSE energy to be delivered: {}".format(message['evse_energy_to_be_delivered']))
         
         if message["evse_status"] != 0:
             self.battery.is_charging = False
@@ -446,22 +471,34 @@ class Ev():
         self.battery.in_voltage = message['nominal_voltage']
         if self.battery.in_voltage >= self.battery.max_voltage_AC:
             print("Battert voltage out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
 
         # check target current
         self.currentAcMaxCurrent = message["max_current"]
         self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.currentAcMaxCurrent
         if self.battery.in_current >= self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
             print("Battery current out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
 
         # check power conditions
         if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
             print("Battery power out of range!")
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
         
         if message["rcd"] == True:
-            self.whitebeet.v2gStopCharging(False)
+            if self.battery.is_charging == True:
+                self.whitebeet.v2gStopCharging(False)
+            else:
+                self.whitebeet.v2gStopSession()
             
 
     def _handleScheduleReceived(self, data):
@@ -555,6 +592,8 @@ class Ev():
         """
         print("\"Charging Stopped\" received")
         self.state = "chargingStopped"
+        print("Change State to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
 
     def _handlePostChargingReady(self, data):
         """
@@ -586,6 +625,8 @@ class Ev():
         print("\"Session Stopped\" received")
         self.whitebeet.v2gEvParseSessionStopped(data)
         self.state = "sessionStopped"
+        print("Change State to State B")
+        self.whitebeet.controlPilotSetResistorValue(0)
     
     def _handleSessionError(self, data):
         """

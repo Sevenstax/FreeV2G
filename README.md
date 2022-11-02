@@ -8,12 +8,36 @@
 
 ## INTRODUCTION
 
-FreeV2G is a reference implementation in python to control the 8DEVICES WHITE beet ISO15118 EI EVSE module. For more information about the WHITE beet module please visit https://www.codico.com/de/white-beet-ei-evse-embedded-iso15118-module. An evaulation board for this module can be found here:
-https://www.codico.com/en/wb-carrier-board-ei-evse-embedded-iso15118.
+FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using Ethernet host control interface (HCI).
+
+For detailed information about the WHITE-beet modules please visit https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module and https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module pages. 
+Evaulation boards for the modules can be found https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev and https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack.
+
+For **Whitebeet EVSE firmware version >= 2.0.0** please checkout the plug and charge branch:
+https://github.com/Sevenstax/FreeV2G/tree/plug_and_charge
+
+The following table has information about the relationship between Whitebeet EVSE firmware versions and FreeV2G.
+
+| Whitebeet Version | FreeV2G Tag |
+| - | - |
+| V01_01_06 | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
+| V01_01_07 | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
+| V02_00_00 | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
+| V02_00_01 | [EVSE_v2.0.1_3](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_3) |
+
+The following table has information about the relationship between Whitebeet EV firmware and FreeV2G for EV.
+
+| Whitebeet Version | FreeV2G Tag |
+| - | - |
+| V01_00_04 | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
+| V01_00_05 | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
+| V01_00_06 | [EV_v1.0.6_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_0) |
+
+Actual Whitebeet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
 
 ## FEATURES
 
-The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE beet. Other features are the WHITE beet class which answers the parameter requests of the WHITE beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
+The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE-beet. Other features are the WHITE-beet class which answers the parameter requests of the WHITE-beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
 
 ### Control Pilot
 
@@ -21,7 +45,7 @@ There is a basic control pilot implemenation which detects the EV plugin and set
 
 ### SLAC
 
-SLAC is performed automatically by the WHITE beet. A notification is received and the application is ready for high-level communication.
+SLAC is performed automatically by the WHITE-beet. A notification is received and the application is ready for high-level communication.
 
 #### V2G High-Level Communication
 
