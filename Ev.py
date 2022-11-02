@@ -10,6 +10,7 @@ class Ev():
     def __init__(self, iftype, iface, mac):
         self.logger = Logger()
         self.whitebeet = Whitebeet(iftype, iface, mac)
+        print(f"WHITE-beet-PI firmware version: {self.whitebeet.version}")
 
         self.battery = Battery()
 
