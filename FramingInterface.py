@@ -3,7 +3,6 @@ import sys
 from multiprocessing import Process, Manager
 from binascii import hexlify, unhexlify
 
-import EthernetAdapter
 from FramingAPIDef import *
 
 sys.path.append("..")
@@ -18,7 +17,7 @@ class FramingInterface():
         self.encryption_configured = False
         self.encryption_initiated = False
 
-        self.connection_mode = "ETHERNET"
+        self.connection_mode = ""
         self.limited_host_simulation = False
         self.sut_ip = ""
         self.sut_mac = ""
@@ -47,18 +46,22 @@ class FramingInterface():
     """
     top level function for initializing the SUT adapter for framing
     """
-    def initialize_framing(self):
+    def initialize_framing(self, if_type, if_name, mac):
         """Top level function for initializing the SUT adapter for framing
         """
-        if self.connection_mode == "ETHERNET":
+        self.connection_mode = if_type
+        if self.connection_mode == "ETH":
+            import EthernetAdapter
             self.sut_adapter = EthernetAdapter.EthernetAdapter()
-
-        if self.sut_mac != "":
-            self.sut_adapter.dut_mac = self.sut_mac
+            if mac:
+                self.sut_adapter.dut_mac = mac
+        elif self.connection_mode == "SPI":
+            import SpiAdapter
+            self.sut_adapter = SpiAdapter.SpiAdapter()
         else:
-            self.sut_adapter.sut_ip = self.sut_ip
+            raise AssertionError("Invalid interface!")
 
-        self.sut_adapter.sut_interface = self.sut_interface
+        self.sut_adapter.sut_interface = if_name
 
         self.sut_adapter.start()
 
@@ -76,7 +79,7 @@ class FramingInterface():
             return self.sut_adapter.receive()
 
     def reload_communication_interface(self):
-        if self.connection_mode == "ETHERNET":
+        if self.connection_mode == "ETH":
             self.reload_eth_interface()
 
     """
@@ -181,27 +184,26 @@ class FramingInterface():
                     # debug_log(self.printable_frame(frame))
 
             if frame is not None:
-                # convert ids to lists for backwards compatibility
-                if filter_req_id and isinstance(filter_req_id, int):
-                    id_temp = filter_req_id
-                    filter_req_id = list()
-                    filter_req_id.append(id_temp)
-                if filter_mod and isinstance(filter_mod, int):
-                    id_temp = filter_mod
-                    filter_mod = list()
-                    filter_mod.append(id_temp)
-                if filter_sub and isinstance(filter_sub, int):
-                    id_temp = filter_sub
-                    filter_sub = list()
-                    filter_sub.append(id_temp)
+                if filter_req_id is not None:
+                    # Filter for request ID
+                    if isinstance(filter_req_id, int):
+                        filter_req_id = [filter_req_id]
+                    if frame.req_id not in filter_req_id:
+                        satisfied = False
 
-                # got frame, apply filters
-                if filter_req_id and not frame.req_id in filter_req_id:
-                    satisfied = False
-                if filter_mod and not frame.mod_id in filter_mod:
-                    satisfied = False
-                if filter_sub and not frame.sub_id in filter_sub:
-                    satisfied = False
+                if filter_mod is not None:
+                    # Filter for module ID
+                    if isinstance(filter_mod, int):
+                        filter_mod = [filter_mod]
+                    if frame.mod_id not in filter_mod:
+                        satisfied = False
+
+                if filter_sub is not None:
+                    # Filter for sub ID
+                    if isinstance(filter_sub, int):
+                        filter_sub = [filter_sub]
+                    if frame.sub_id not in filter_sub:
+                        satisfied = False
 
                 # for backwards compatibility
                 if frame.sub_id > 127:
@@ -220,28 +222,30 @@ class FramingInterface():
                 satisfied = False
 
             if timeout == 0:
-                self.frame_backlog += temp_backlog
                 if satisfied == False:
                     frame = None
 
                 if self.sut_adapter.holding_data():
                     continue
 
-                break
+                if len(self.frame_backlog) == 0 or search_backlog == False:
+                    break
 
-            if time.time() > timeout_point:
-                self.frame_backlog += temp_backlog
+            elif time.time() > timeout_point and not satisfied:
+                self.frame_backlog = temp_backlog + self.frame_backlog
                 debug_log("Im over timeout {}: timeout_point is {} and i am {}".format(
                     str(timeout), str(timeout_point), str(time.time())))
 
                 if noisy_timeout:
                     raise AssertionError("Frame reception timed out")
-                    return None
                 else:
                     return None
 
+            else:
+                # Timeout not exceeded, continue
+                pass
 
-        self.frame_backlog += temp_backlog
+        self.frame_backlog = temp_backlog + self.frame_backlog
         return frame
 
     def send_frame_and_get_answer(self, module_id, sub_id, payload, timeout=5,

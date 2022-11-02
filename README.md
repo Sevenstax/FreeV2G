@@ -11,29 +11,28 @@
 FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using Ethernet host control interface (HCI).
 
 For detailed information about the WHITE-beet modules please visit https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module and https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module pages. 
-Evaulation boards for the modules can be found https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev and https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack.
+Evaulation boards for the modules can be found on https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev and https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack.
 
-For **Whitebeet EVSE firmware version >= 2.0.0** please checkout the plug and charge branch:
-https://github.com/Sevenstax/FreeV2G/tree/plug_and_charge
+Please use the correct version of the FreeV2G application for your WHITE-beet firmware.
 
-The following table has information about the relationship between Whitebeet EVSE firmware versions and FreeV2G.
+The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE firmware versions and FreeV2G.
 
-| Whitebeet Version | FreeV2G Tag |
+| WB FW Version | FreeV2G Tag |
 | - | - |
 | V01_01_06 | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
 | V01_01_07 | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
 | V02_00_00 | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
 | V02_00_01 | [EVSE_v2.0.1_3](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_3) |
 
-The following table has information about the relationship between Whitebeet EV firmware and FreeV2G for EV.
+The following table has information about the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
 
-| Whitebeet Version | FreeV2G Tag |
+| WB FW Version | FreeV2G Tag |
 | - | - |
 | V01_00_04 | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
 | V01_00_05 | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
 | V01_00_06 | [EV_v1.0.6_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_0) |
 
-Actual Whitebeet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
+Actual WHITE-beet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
 
 ## FEATURES
 
@@ -53,27 +52,42 @@ When SLAC was succefully performed the EVSE and the EV are in same network and t
 
 ## GETTING FreeV2G
 
-To get started first clone the repository
+To get started first clone the repository. This will get you the latest version of the repository.
 
 ```console
 $ git clone https://github.com/SEVENSTAX/FreeV2G
+$ cd FreeV2G
 ```
 
-This will get you the newest version of the repository.
-Please make sure to install scapy. The simplest way is using pip to install it.
-
+Create a virtual environment
 ```console
-$ pip install scapy
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+```
+
+Install the python packages needed
+```console
+$ pip install --pre scapy[basic]
+$ pip install Cython
+$ pip install python-libpcap
 ```
 
 ## GETTING STARTED
 
 Make sure that EVSE and EV are not physically connected on the PLC interface.
 
-Run the Application by typing (it is necessary to provide actual STM32 ETH MAC address printed out on the label of Evaluation board)
+Find the MAC address printed on the label of the board in the form of i.e. c4:93:00:22:22:24. This is the MAC address of the PLC chip. To get the MAC address of the ethernet interface substract 2 of the last number of the MAC address. For the example above this would result in the MAC address c4:93:00:22:22:22 for the ethernet interface.
+
+Find the ethernet interface the WHITE-beet is connected to with
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:22:22:22 -r EVSE
+$ ip list
+```
+
+Run the Application in EVSE mode by typing (we need root privileges for raw socket access).
+
+```console
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
 ```
 
 You should see the following output
@@ -165,15 +179,15 @@ SOC: 50%
 EVSE loop finished
 Goodbye!
 ```
-## EV support
+## EV SUPPORT
 
 Run the application in EV mode by typing
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:33:33:33 -r EV
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV
 ```
 
-## Configuration file
+## CONFIGURATION
 
 You can set the configuration via a configuration file in json format.
 
@@ -182,7 +196,7 @@ You can set the configuration via a configuration file in json format.
 Run the application with configuration file
 
 ```console
-$ python3 Application.py "eth0" -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
 ```
 
 If no path is given the configuration file defaults to ./ev.json. An example configuration can be found in ev.json.
