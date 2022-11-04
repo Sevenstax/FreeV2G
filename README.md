@@ -200,3 +200,33 @@ $ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV -
 ```
 
 If no path is given the configuration file defaults to ./ev.json. An example configuration can be found in ev.json.
+
+## RASPBERRY PI SPI
+
+Install the python packages needed
+```console
+$ pip install spidev
+$ pip install RPi.GPIO
+```
+
+Connect the WHITE-beet to the Raspberry Pi
+
+The SPI pinout for the Pi can be found on https://pinout.xyz/pinout/spi#
+
+| WB Pin | Raspberry Pi Pin |
+| - | - |
+| J8 MOSI | SPI0 MOSI |
+| J8 MISO | SPI0 MISO |
+| J8 SCK | SPI0 SCLK |
+| J8 NSS | GPIO 24 |
+| J8 GND | Ground |
+| J1 PD4 | GPIO 22 |
+| J1 PD11 | GPIO 27 |
+
+Set up the WHITE-beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND on J4.
+
+Power up the WHITE-beet and run the application in SPI mode with the following command
+
+```console
+sudo .venv/bin/python3 Application.py spi -i spidev0.0 -m 00:01:01:63:77:33 -r EVSE
+```
