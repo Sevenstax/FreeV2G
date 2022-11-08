@@ -17,20 +17,20 @@ Please use the correct version of the FreeV2G application for your WHITE-beet fi
 
 The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE firmware versions and FreeV2G.
 
-| WB FW Version | FreeV2G Tag |
-| - | - |
-| V01_01_06 | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
-| V01_01_07 | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
-| V02_00_00 | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
-| V02_00_01 | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
+| WB FW Version | SW Type | FreeV2G Tag |
+| - | - | - |
+| V01_01_06 | EIM | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
+| V01_01_07 | EIM | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
+| V02_00_00 | PNC | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
+| V02_00_01 | PNC | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
 
 The following table has information about the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
 
-| WB FW Version | FreeV2G Tag |
-| - | - |
-| V01_00_04 | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
-| V01_00_05 | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
-| V01_00_06 | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
+| WB FW Version | SW Type | FreeV2G Tag |
+| - | - | - |
+| V01_00_04 | EIM | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
+| V01_00_05 | EIM | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
+| V01_00_06 | EIM | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
 
 Actual WHITE-beet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
 
