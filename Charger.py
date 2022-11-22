@@ -5,15 +5,15 @@ class Charger():
     def __init__(self):
         self.timestamp_last_calc_u = time.time_ns() / 1000000
         self.timestamp_last_calc_i = time.time_ns() / 1000000
-        self.evse_present_voltage = 0
-        self.evse_present_current = 0
-        self.evse_delta_u = 0
-        self.evse_delta_i = 0
-        self.evse_max_current = 0
-        self.evse_min_current = 0
-        self.evse_max_voltage = 0
-        self.evse_min_voltage = 0
-        self.evse_max_power = 0
+        self.present_voltage = 0
+        self.present_current = 0
+        self.delta_u = 0
+        self.delta_i = 0
+        self.max_current = 0
+        self.min_current = 0
+        self.max_voltage = 0
+        self.min_voltage = 0
+        self.max_power = 0
         self.ev_max_current = 0
         self.ev_min_current = 0
         self.ev_max_power = 0
@@ -32,14 +32,14 @@ class Charger():
         delta_t = (time.time_ns() / 1000000) - self.timestamp_last_calc_u
         self.timestamp_last_calc_u = time.time_ns() / 1000000
         if self.stopped:
-            self.evse_present_voltage -= self.evse_delta_u * delta_t
-            self.evse_present_voltage = max(self.evse_present_voltage, 0)
-        elif self.ev_target_voltage > self.evse_present_voltage:
-            self.evse_present_voltage += self.evse_delta_u * delta_t
-            self.evse_present_voltage = min(self.evse_present_voltage, self.evse_max_voltage, self.ev_target_voltage)
-        elif self.ev_target_voltage < self.evse_present_voltage:
-            self.evse_present_voltage -= self.evse_delta_u * delta_t
-            self.evse_present_voltage = max(self.evse_present_voltage, self.evse_min_voltage, self.ev_target_voltage)
+            self.present_voltage -= self.delta_u * delta_t
+            self.present_voltage = max(self.present_voltage, 0)
+        elif self.ev_target_voltage > self.present_voltage:
+            self.present_voltage += self.delta_u * delta_t
+            self.present_voltage = min(self.present_voltage, self.max_voltage, self.ev_target_voltage)
+        elif self.ev_target_voltage < self.present_voltage:
+            self.present_voltage -= self.delta_u * delta_t
+            self.present_voltage = max(self.present_voltage, self.min_voltage, self.ev_target_voltage)
         else:
             # Target voltage already reached
             pass
@@ -52,14 +52,14 @@ class Charger():
         delta_t = (time.time_ns() / 1000000) - self.timestamp_last_calc_i
         self.timestamp_last_calc_i = time.time_ns() / 1000000
         if self.stopped:
-            self.evse_present_current -= self.evse_delta_i * delta_t
-            self.evse_present_current = max(self.evse_present_current, 0)
-        elif self.ev_target_current > self.evse_present_current:
-            self.evse_present_current += self.evse_delta_i * delta_t
-            self.evse_present_current = min(self.evse_present_current, self.evse_max_current, self.ev_target_current)
-        elif self.ev_target_current < self.evse_present_current:
-            self.evse_present_current -= self.evse_delta_i * delta_t
-            self.evse_present_current = max(self.evse_present_current, self.evse_min_current, self.ev_target_current)
+            self.present_current -= self.delta_i * delta_t
+            self.present_current = max(self.present_current, 0)
+        elif self.ev_target_current > self.present_current:
+            self.present_current += self.delta_i * delta_t
+            self.present_current = min(self.present_current, self.max_current, self.ev_target_current)
+        elif self.ev_target_current < self.present_current:
+            self.present_current -= self.delta_i * delta_t
+            self.present_current = max(self.present_current, self.min_current, self.ev_target_current)
         else:
             # Target current already reached
             pass
@@ -79,25 +79,25 @@ class Charger():
         self.stopped = True
 
     def setEvseMaxCurrent(self, value):
-        self.evse_max_current = value
+        self.max_current = value
 
     def setEvseMinCurrent(self, value):
-        self.evse_min_current = value
+        self.min_current = value
 
     def setEvseMaxVoltage(self, value):
-        self.evse_max_voltage = value
+        self.max_voltage = value
 
     def setEvseMinVoltage(self, value):
-        self.evse_min_voltage = value
+        self.min_voltage = value
 
     def setEvseMaxPower(self, value):
-        self.evse_max_power = value
+        self.max_power = value
 
     def setEvseDeltaVoltage(self, value):
-        self.evse_delta_u = value
+        self.delta_u = value
 
     def setEvseDeltaCurrent(self, value):
-        self.evse_delta_i = value
+        self.delta_i = value
 
     def setEvMaxCurrent(self, value):
         self.ev_max_current = value
@@ -118,7 +118,7 @@ class Charger():
         self.ev_max_power = value
 
     def setEvTargetVoltage(self, voltage):
-        if voltage > self.evse_max_voltage:
+        if voltage > self.max_voltage:
             return False
         else:
             self._calcEvsePresentVoltage()
@@ -126,7 +126,7 @@ class Charger():
             return True
 
     def setEvTargetCurrent(self, current):
-        if current > self.evse_max_current:
+        if current > self.max_current:
             return False
         else:
             self._calcEvsePresentCurrent()
@@ -134,25 +134,25 @@ class Charger():
             return True
 
     def getEvseMaxCurrent(self):
-        return self.evse_max_current
+        return self.max_current
 
     def getEvseMinCurrent(self):
-        return self.evse_min_current
+        return self.min_current
 
     def getEvseMaxVoltage(self):
-        return self.evse_max_voltage
+        return self.max_voltage
 
     def getEvseMinVoltage(self):
-        return self.evse_min_voltage
+        return self.min_voltage
 
     def getEvseMaxPower(self):
-        return self.evse_max_power
+        return self.max_power
 
     def getEvseDeltaVoltage(self):
-        return self.evse_delta_u
+        return self.delta_u
 
     def getEvseDeltaCurrent(self):
-        return self.evse_delta_i
+        return self.delta_i
 
     def getEvMaxCurrent(self):
         return self.ev_max_current
@@ -174,30 +174,30 @@ class Charger():
 
     def getEvsePresentVoltage(self):
         self._calcEvsePresentVoltage()
-        return self.evse_present_voltage
+        return self.present_voltage
 
     def getEvsePresentCurrent(self):
         self._calcEvsePresentCurrent()
-        return self.evse_present_current
+        return self.present_current
 
     def isVoltageLimitExceeded(self, voltage):
-        if voltage > self.evse_max_voltage:
+        if voltage > self.max_voltage:
             return True
-        elif voltage < self.evse_min_voltage:
+        elif voltage < self.min_voltage:
             return True
         else:
             return False
 
     def isCurrentLimitExceeded(self, current):
-        if current > self.evse_max_current:
+        if current > self.max_current:
             return True
-        elif current < self.evse_min_current:
+        elif current < self.min_current:
             return True
         else:
             return False
 
     def isPowerLimitExceeded(self, power):
-        if power > self.evse_max_power:
+        if power > self.max_power:
             return True
         else:
             return False

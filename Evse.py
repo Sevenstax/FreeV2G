@@ -5,12 +5,22 @@ from Charger import *
 class Evse():
 
     def __init__(self, iftype, iface, mac):
-        self.whitebeet = Whitebeet(iftype, iface, mac)
-        print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
+        #self.whitebeet = Whitebeet(iftype, iface, mac)
+        #print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
         self.charger = Charger()
         self.schedule = None
-        self.evse_config = None
+        
+        self.evse_config = {}
+        self.evse_config["evse_id_DIN"] = None
+        self.evse_config["evse_id_ISO"] = None
+        self.evse_config["protocol"] = None
+        self.evse_config["payment_method"] = None
+        self.evse_config["energy_transfer_mode"] = None
+        self.evse_config["certificate_installation_support"] = None
+        self.evse_config["certificate_update_support"] = None
+        
         self.charging = False
+        self.certs_folder = "."
 
     def __enter__(self):
         return self
@@ -22,6 +32,45 @@ class Evse():
     def __del__(self):
         if hasattr(self, "whitebeet"):
             del self.whitebeet
+
+    def load(self, configDict):
+        #TODO: change to more generic way
+        if "charger" in configDict:
+            for key in configDict["charger"]:
+                try:
+                    setattr(self.charger, key, configDict["charger"][key])
+                except:
+                    print(key + " not in Charger config")
+                    continue
+
+        if "schedule" in configDict:
+            try:
+                self.setSchedule(configDict["schedule"])
+            except:
+                print("Error in reading schedule")
+
+        if "certs_folder" in configDict:
+            try:
+                self.certs_folder = (configDict["certs_folder"])
+            except:
+                print("Error in reading schedule")
+        else:
+            self.certs_folder = "."
+
+        if "evse" in configDict:
+            for key in configDict["evse"]:
+                try:
+                    self.evse_config[key] = configDict["evse"][key]
+                except:
+                    print(key + " not in EVSE config")
+                    continue
+
+        print("EVSE configuration:\n")
+        for key, value in self.evse_config:
+            print("\t{}: {}\n".format(key, value))
+
+        print("EVSE schedule: \n{}".format(self.schedule))
+        
 
     def _initialize(self):
         """
@@ -632,3 +681,57 @@ class Evse():
             return self._handleEvConnected()
         else:
             return False
+
+    def injectCertificates(self):
+        print("")
+        print("")
+        print("################### INFO #####################")
+        print("Looking for certificates at:")
+        print(" {}/3.crt (V2GRootCA)".format(self.certs_folder))
+        print(" {}/2.crt (CPOSubCA1)".format(self.certs_folder))
+        print(" {}/1.crt (CPOSubCA2)".format(self.certs_folder))
+        print(" {}/0.crt (SECCCert)".format(self.certs_folder))
+        print(" {}/0.key (SECC prviate unencrypted Key)".format(self.certs_folder))
+        print(" {}/moca.crt (Mobility Operator CA)".format(self.certs_folder))
+        print("##############################################")
+        print("")
+        print("")
+        time.sleep(4)
+
+        print("Injecting Certificates!")
+        
+        #print("EVSE  OPEN OWN PATH")
+        #evse.openOwn()
+        print("##########################")
+        print("DELETE ALL CERTS ON TARGET")
+        print("##########################")
+        self.deleteAllCerts()
+        
+        print("##########################")
+        print("EVSE: ADDING OWN CERT CHAIN")
+        print("##########################")
+        self.addOwn()    
+                        
+        time.sleep(2)
+        print("##########################")
+        print("EVSE: ADDING MO CA ROOT")
+        print("##########################")
+        self.addMoCARoot()
+
+        print("injecting done, please restart application!")
+
+    def openOwn(self):
+        self.whitebeet.openOwnCert()
+
+    def addOwn(self):
+        self.whitebeet.addOwnCert(self.certs_folder)
+
+    def setTime(self):
+        self.whitebeet.setTime()
+        
+    def addMoCARoot(self):
+        self.whitebeet.add_mo_root_cert(self.certs_folder)
+        
+    def deleteAllCerts(self):
+        self.whitebeet.removeAllChainCerts()
+        self.whitebeet.removeAllMoRootCerts()
