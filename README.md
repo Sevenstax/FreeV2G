@@ -17,20 +17,20 @@ Please use the correct version of the FreeV2G application for your WHITE-beet fi
 
 The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE firmware versions and FreeV2G.
 
-| WB FW Version | SW Type | FreeV2G Tag |
-| - | - | - |
-| V01_01_06 | EIM | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
-| V01_01_07 | EIM | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
-| V02_00_00 | PNC | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
-| V02_00_01 | PNC | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
+| WB FW Version | SW Type | FreeV2G Tag                                                              |
+| ------------- | ------- | ------------------------------------------------------------------------ |
+| V01_01_06     | EIM     | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
+| V01_01_07     | EIM     | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
+| V02_00_00     | PNC     | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
+| V02_00_01     | PNC     | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
 
 The following table has information about the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
 
-| WB FW Version | SW Type | FreeV2G Tag |
-| - | - | - |
-| V01_00_04 | EIM | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
-| V01_00_05 | EIM | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
-| V01_00_06 | EIM | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
+| WB FW Version | SW Type | FreeV2G Tag                                                          |
+| ------------- | ------- | -------------------------------------------------------------------- |
+| V01_00_04     | EIM     | [EV_v1.0.4_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.4_0) |
+| V01_00_05     | EIM     | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
+| V01_00_06     | EIM     | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
 
 Actual WHITE-beet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
 
@@ -191,15 +191,17 @@ $ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV
 
 You can set the configuration via a configuration file in json format.
 
-**Currently only EV mode supports a configuration file.**
-
 Run the application with configuration file
 
 ```console
 $ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
 ```
 
-If no path is given the configuration file defaults to ./ev.json. An example configuration can be found in ev.json.
+If no path is given the configuration file defaults to ./config.json. An example configuration can be found in config_ev.json or config_evse.json. The file config.json can be either a symlink to config_ev.json or config_evse.json.
+
+## CERTIFICATES
+
+The EVSE supports injecting of certificates now. The path to the certificates can be set in the config_evse.json file.
 
 ## RASPBERRY PI SPI
 
@@ -213,15 +215,15 @@ Connect the WHITE-beet to the Raspberry Pi
 
 The SPI pinout for the Pi can be found on https://pinout.xyz/pinout/spi#
 
-| WB Pin | Raspberry Pi Pin |
-| - | - |
-| J8 MOSI | SPI0 MOSI |
-| J8 MISO | SPI0 MISO |
-| J8 SCK | SPI0 SCLK |
-| J8 NSS | GPIO 24 |
-| J8 GND | Ground |
-| J1 PD4 | GPIO 22 |
-| J1 PD11 | GPIO 27 |
+| WB Pin  | Raspberry Pi Pin |
+| ------- | ---------------- |
+| J8 MOSI | SPI0 MOSI        |
+| J8 MISO | SPI0 MISO        |
+| J8 SCK  | SPI0 SCLK        |
+| J8 NSS  | GPIO 24          |
+| J8 GND  | Ground           |
+| J1 PD4  | GPIO 22          |
+| J1 PD11 | GPIO 27          |
 
 Set up the WHITE-beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND on J4.
 
