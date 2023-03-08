@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 evse.injectCertificates()
             else:
                 # Start the EVSE loop
-                #evse.whitebeet.networkConfigSetPortMirrorState(1)
+                evse.whitebeet.networkConfigSetPortMirrorState(1)
                 evse.loop()
                 print("EVSE loop finished")
 
