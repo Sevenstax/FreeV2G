@@ -66,7 +66,7 @@ class Evse():
                     continue
 
         print("EVSE configuration:\n")
-        for key, value in self.evse_config:
+        for key, value in self.evse_config.items():
             print("\t{}: {}\n".format(key, value))
 
         print("EVSE schedule: \n{}".format(self.schedule))
