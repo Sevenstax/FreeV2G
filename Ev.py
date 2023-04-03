@@ -155,7 +155,7 @@ class Ev():
             print("Wait until an EVSE connects")
             while True:
                 cp_dc = self.whitebeet.controlPilotGetDutyCycle()
-                if timeout != None and timestamp_start + timeout > time.time():
+                if timeout != None and timestamp_start + timeout < time.time():
                     return False
                 if cp_dc < 10.0 and cp_dc > 0.1:
                     print("EVSE connected")
