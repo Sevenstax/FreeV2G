@@ -72,6 +72,7 @@ class Whitebeet():
         self.v2g_sub_ev_start_charging = 0xAC
         self.v2g_sub_ev_stop_charging = 0xAD
         self.v2g_sub_ev_stop_session = 0xAE
+        self.v2g_sub_ev_service_details_required = 0xAF
        
 
         # EVSE sub IDs
@@ -903,6 +904,14 @@ class Whitebeet():
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_stop_session, None)
+
+    def v2gServiceDetailsRequired(self, required):
+        if not isinstance(required, bool):
+            raise ValueError("Parameter required has to be of type bool")
+        else:
+            payload = b""
+            payload += required.to_bytes(1, 'big')
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_service_details_required, payload)
     
     def v2gEvParseSessionStarted(self, data):
         """
