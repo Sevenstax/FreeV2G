@@ -95,6 +95,7 @@ class Whitebeet():
         self.v2g_sub_evse_set_cable_certificate_installation_and_update_response = 0x73
         self.v2g_sub_evse_set_meter_receipt = 0x74
         self.v2g_sub_evse_send_notification = 0x75
+        self.v2g_sub_evse_set_session_parameter_timeout = 0x76
 
         # Initialization of the framing interface
         self.framing = FramingInterface()
@@ -1697,6 +1698,10 @@ class Whitebeet():
         payload = struct.pack("!?", renegotiation)
         payload += struct.pack("!H", timeout)
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_send_notification, payload)
+
+    def v2gEvseSetSessionParameterTimeout(self, timeoutMs):
+        payload = struct.pack("!H", timeoutMs)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_session_parameter_timeout, payload)
 
     def v2gEvseParseSessionStarted(self, data):
         """
