@@ -200,9 +200,18 @@ class FramingInterface():
 
                 if filter_sub is not None:
                     # Filter for sub ID
-                    if isinstance(filter_sub, int):
-                        filter_sub = [filter_sub]
-                    if frame.sub_id not in filter_sub:
+                    sub_id_filter_list = None
+
+                    if isinstance(filter_sub, dict):
+                        if frame.mod_id in filter_sub:
+                            sub_id_filter_list = filter_sub[frame.mod_id]
+                    else:
+                        sub_id_filter_list = filter_sub
+
+                    if isinstance(sub_id_filter_list, int):
+                        sub_id_filter_list = [sub_id_filter_list]
+
+                    if not (sub_id_filter_list == None or frame.sub_id in sub_id_filter_list):
                         satisfied = False
 
                 # for backwards compatibility
@@ -316,7 +325,7 @@ class FramingInterface():
         return request_id_num
 
     def generate_next_request_id(self):
-        if self.request_id == 255:
+        if self.request_id == 254: # Skip 0xFF as that's used for status messages
             self.request_id = 0
         else:
             self.request_id += 1
