@@ -166,7 +166,7 @@ class Whitebeet():
             response = None
             while loop == True:
                 req_id = self.framing.build_and_send_frame(mod_id, sub_id, payload)
-                response = self.framing.receive_next_frame(filter_mod=[mod_id, 0xFF], filter_req_id=req_id, timeout=time_end - time_start)
+                response = self.framing.receive_next_frame(filter_mod=[mod_id, 0xFF], filter_sub={ mod_id: sub_id }, filter_req_id=req_id, timeout=time_end - time_start)
                 if response is None:
                     self.connectionError = True
                     raise ConnectionError("Problem with send/receive - Please check your connection!")
