@@ -1,0 +1,21 @@
+name: Remove wait label on comment
+on:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  remove-wait-label:
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.issue.pull_request && github.event.issue.user.id == github.event.comment.user.id && contains(github.event.issue.labels.*.name, 'wait for customer') }}
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.removeLabel({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: "wait for customer"
+            })
