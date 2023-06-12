@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mac', type=str, help='This is the MAC address of the ethernet interface of the Whitebeet (i.e. "{}").'.format(WHITEBBET_DEFAULT_MAC))
     parser.add_argument('-r', '--role', type=str, choices=('EVSE', 'EV'), required=True, help='This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode')
     parser.add_argument('-c', '--config', type=str, help='Path to configuration file. Defaults to ./ev.json.\nA MAC present in the config file will override a MAC provided with -m argument.', nargs='?', const="./ev.json")
+    parser.add_argument('-p', '--portmirror', help='Enables port mirror.', action='store_true')
     args = parser.parse_args()
 
     # If no MAC address was given set it to the default MAC address of the Whitebeet
@@ -43,7 +44,7 @@ if __name__ == "__main__":
                 ev.load(config)
 
             # Start the EVSE loop
-            ev.whitebeet.networkConfigSetPortMirrorState(1)
+            ev.whitebeet.networkConfigSetPortMirrorState(args.portmirror)
             ev.loop()
             print("EV loop finished")
 
@@ -90,6 +91,7 @@ if __name__ == "__main__":
             evse.setSchedule(schedule)
 
             # Start the EVSE loop
+            evse.whitebeet.networkConfigSetPortMirrorState(args.portmirror)
             evse.loop()
             print("EVSE loop finished")
 
