@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument('interface_type', type=str, choices=('eth', 'spi'), help='Type of the interface through which the Whitebeet is connected. ("eth" or "spi").')
     parser.add_argument('-i', '--interface', type=str, required=True, help='This is the name of the interface where the Whitebeet is connected to (i.e. for eth "eth0" or spi "0").')
     parser.add_argument('-m', '--mac', type=str, help='This is the MAC address of the ethernet interface of the Whitebeet (i.e. "{}").'.format(WHITEBBET_DEFAULT_MAC))
-    parser.add_argument('-r', '--role', type=str, help='This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode')
+    parser.add_argument('-r', '--role', type=str, choices=('EV', 'EVSE'), help='This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode')
     parser.add_argument('-c', '--config', type=str, help='Path to configuration file. Defaults to ./config.json.\nA MAC present in the config file will override a MAC provided with -m argument.', nargs='?', const="./config.json")
     args = parser.parse_args()
 
@@ -20,7 +20,6 @@ if __name__ == "__main__":
     print('Welcome to Codico Whitebeet {} reference implementation'.format(args.role))
 
     mac = args.mac
-    config = "./config.json"
     # Load configuration from json
     if args.config is not None:
         try:
@@ -37,7 +36,7 @@ if __name__ == "__main__":
 
     # role is EV
     if(args.role == "EV"):  
-        with Ev(args.interface_type, args.interface, args.mac) as ev:
+        with Ev(args.interface_type, args.interface, mac) as ev:
             # apply config to ev
             if config is not None:
                 print("EV configuration: " + str(config))
