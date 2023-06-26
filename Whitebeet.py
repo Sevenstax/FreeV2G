@@ -865,7 +865,6 @@ class Whitebeet():
                 payload += int(schedule['interval'][i]).to_bytes(4, "big")
                 payload += int(schedule['power'][i]).to_bytes(2, "big")
                 payload += b"\x00"
-        print(schedule)
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_charging_profile, payload)
 
     def v2gStartSession(self):
@@ -1739,8 +1738,6 @@ class Whitebeet():
         self.payloadReaderInitialize(data, len(data))
         message['selected_payment_method'] = self.payloadReaderReadInt(1)
 
-        print("payment option:")
-        print(message['selected_payment_method'])
         if message['selected_payment_method'] == 1:
             message['contract_certificate'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
             message['mo_sub_ca1'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))

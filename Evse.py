@@ -5,8 +5,8 @@ from Charger import *
 class Evse():
 
     def __init__(self, iftype, iface, mac):
-        #self.whitebeet = Whitebeet(iftype, iface, mac)
-        #print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
+        self.whitebeet = Whitebeet(iftype, iface, mac)
+        print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
         self.charger = Charger()
         self.schedule = None
         
