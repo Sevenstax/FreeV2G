@@ -10,14 +10,14 @@ class Evse():
         self.charger = Charger()
         self.schedule = None
         
-        self.evse_config = {}
-        self.evse_config["evse_id_DIN"] = None
-        self.evse_config["evse_id_ISO"] = None
-        self.evse_config["protocol"] = None
-        self.evse_config["payment_method"] = None
-        self.evse_config["energy_transfer_mode"] = None
-        self.evse_config["certificate_installation_support"] = None
-        self.evse_config["certificate_update_support"] = None
+        self.config = {}
+        self.config["evse_id_DIN"] = '+49*123*456*789'
+        self.config["evse_id_ISO"] = 'DE*A23*E45B*78C'
+        self.config["protocol"] = [0, 1]
+        self.config["payment_method"] = [0]
+        self.config["energy_transfer_mode"] = [0, 1, 2, 3]
+        self.config["certificate_installation_support"] = False
+        self.config["certificate_update_support"] = False
         
         self.charging = False
         self.certs_folder = "."
@@ -53,23 +53,17 @@ class Evse():
             try:
                 self.certs_folder = (configDict["certs_folder"])
             except:
-                print("Error in reading schedule")
+                print("Error in reading certs_folder")
         else:
             self.certs_folder = "."
 
         if "evse" in configDict:
             for key in configDict["evse"]:
                 try:
-                    self.evse_config[key] = configDict["evse"][key]
+                    self.config[key] = configDict["evse"][key]
                 except:
                     print(key + " not in EVSE config")
                     continue
-
-        print("EVSE configuration:\n")
-        for key, value in self.evse_config.items():
-            print("\t{}: {}\n".format(key, value))
-
-        print("EVSE schedule: \n{}".format(self.schedule))
         
 
     def _initialize(self):
@@ -147,17 +141,7 @@ class Evse():
         """
         print("Set V2G mode to EVSE")
         self.whitebeet.v2gSetMode(1)
-
-        self.evse_config = {
-            "evse_id_DIN": '+49*123*456*789',
-            "evse_id_ISO": 'DE*A23*E45B*78C',
-            "protocol": [0, 1], 
-            "payment_method": [0],
-            "energy_transfer_mode": [0, 1, 2, 3],
-            "certificate_installation_support": False,
-            "certificate_update_support": False,
-        }
-        self.whitebeet.v2gEvseSetConfiguration(self.evse_config)
+        self.whitebeet.v2gEvseSetConfiguration(self.config)
 
         self.dc_charging_parameters = {
             'isolation_level': 0,
@@ -342,7 +326,7 @@ class Evse():
 
         if 'selected_energy_transfer_mode' in message:
             print('Selected energy transfer mode: {}'.format(message['selected_energy_transfer_mode']))
-            if not message['selected_energy_transfer_mode'] in self.evse_config['energy_transfer_mode']:
+            if not message['selected_energy_transfer_mode'] in self.config['energy_transfer_mode']:
                 print('Energy transfer mode mismatch!')
                 try:
                     self.whitebeet.v2gEvseStopCharging()

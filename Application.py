@@ -39,7 +39,7 @@ if __name__ == "__main__":
         with Ev(args.interface_type, args.interface, mac) as ev:
             # apply config to ev
             if config is not None:
-                print("EV configuration: " + str(config))
+                print("EV configuration file: " + str(config))
                 ev.load(config)
 
             # Start the EVSE loop

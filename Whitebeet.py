@@ -545,21 +545,15 @@ class Whitebeet():
         """
         Sets the configuration for EV mode
         """
-        if not ({"evid", "protocol_count", "protocols", "payment_method_count", "payment_method", "energy_transfer_mode_count", "energy_transfer_mode", "battery_capacity", "battery_capacity"} <= set(config)):
+        if not ({"evid", "protocol", "payment_method", "energy_transfer_mode", "battery_capacity"} <= set(config)):
             raise ValueError("Missing keys in config dict")
 
         if config["evid"] is not None and (not isinstance(config["evid"], bytes) or len(config["evid"]) != 6):
             raise ValueError("evid needs to be of type byte with length 6")
-        elif not isinstance(config["protocol_count"], int) or not (1 <= config["protocol_count"] <= 2):
-            raise ValueError("protocol_count needs to be of type int with value 1 or 2")
-        elif config["protocols"] is not None and (not isinstance(config["protocols"], list) or len(config["protocols"]) != config["protocol_count"]):
-            raise ValueError("protocol needs to be of type int with value 0 or 1")
-        elif not isinstance(config["payment_method_count"], int):
-            raise ValueError("payment_method_count needs to be of type int")
+        elif config["protocol"] is not None and (not isinstance(config["protocol"], list)):
+            raise ValueError("protocol needs to be of type list")
         elif not isinstance(config["payment_method"], list):
             raise ValueError("payment_method needs to be of type list")
-        elif not isinstance(config["energy_transfer_mode_count"], int) or not (1 <= config["energy_transfer_mode_count"] <= 6):
-            raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
         elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list) or len(config["energy_transfer_mode"]) != config["energy_transfer_mode_count"]):
             raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
         elif not isinstance(config["battery_capacity"], int) and not (isinstance(config["battery_capacity"], tuple) and len(config["battery_capacity"]) == 2):
@@ -567,15 +561,15 @@ class Whitebeet():
         else:
             payload = b""
             payload += config["evid"]
-            payload += config["protocol_count"].to_bytes(1, "big")
-            for protocol in config["protocols"]:
+            payload += len(configuration['protocol']).to_bytes(1, 'big')
+            for protocol in config["protocol"]:
                 payload += protocol.to_bytes(1, "big")
 
-            payload += config["payment_method_count"].to_bytes(1, "big")
+            payload += len(configuration['payment_method']).to_bytes(1, 'big')
             for method in config["payment_method"]:
                 payload += method.to_bytes(1, "big")
 
-            payload += config["energy_transfer_mode_count"].to_bytes(1, "big")
+            payload += len(configuration['energy_transfer_mode']).to_bytes(1, 'big')
             for mode in config["energy_transfer_mode"]:
                 if mode not in range(0, 6):
                     raise ValueError("values of energy_transfer_mode out of range")
@@ -595,33 +589,43 @@ class Whitebeet():
         ret = {}
         response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
 
-        ret["evid"] = self.payloadReaderReadBytes(6)
+        code = self.payloadReaderReadInt(1)
+        ret['code'] = code
+        ret['evid'] = None
+        ret['protocol'] = None
+        ret['payment_method'] = None
+        ret['energy_transfer_mode'] = None
+        ret["battery_capacity"] = None
 
-        ret["protocol_count"] = self.payloadReaderReadInt(1)
-        prot_list = []
-        for i in range(ret["protocol_count"]):
-            prot_list.append(self.payloadReaderReadInt(1))
-        ret["protocol"] = prot_list
+        if code == b'\x00':
+            ret["evid"] = self.payloadReaderReadBytes(6)
+
+            lenProtocol = self.payloadReaderReadInt(1)
+            prot_list = []
+            for i in range(lenProtocol):
+                prot_list.append(self.payloadReaderReadInt(1))
+            
+            lenPaymentMethod = self.payloadReaderReadInt(1)
+            met_list = []
+            for i in range(lenPaymentMethod):
+                met_list.append(self.payloadReaderReadInt(1))
+
+            lenEnergyTransferMode = self.payloadReaderReadInt(1)
+            met_list = []
+            for i in range(lenEnergyTransferMode):
+                met_list.append(self.payloadReaderReadInt(1))
+
+            #TODO: wrong battery capacity
+            battery_capacity = self.payloadReaderReadExponential()
+            #TODO: payload to short
+            #ret["departure_time"] = self.payloadReaderReadInt(4)
         
-        ret["payment_method_count"] = self.payloadReaderReadInt(1)
-        met_list = []
-        for i in range(ret["payment_method_count"]):
-            met_list.append(self.payloadReaderReadInt(1))
-        ret["payment_method"] = met_list
+            ret["payment_method"] = met_list
+            ret["protocol"] = prot_list
+            ret["energy_transfer_mode"] = met_list
+            ret["battery_capacity"] = battery_capacity
 
-        ret["energy_transfer_mode_count"] = self.payloadReaderReadInt(1)
-        met_list = []
-        for i in range(ret["energy_transfer_mode_count"]):
-            met_list.append(self.payloadReaderReadInt(1))
-
-        ret["energy_transfer_mode"] = met_list
-        
-        #TODO: wrong battery capacity
-        ret["battery_capacity"] = self.payloadReaderReadExponential()
-        #TODO: payload to short
-        #ret["departure_time"] = self.payloadReaderReadInt(4)
         self.payloadReaderFinalize()
         return ret
 
@@ -1178,13 +1182,13 @@ class Whitebeet():
         
         code = self.payloadReaderReadBytes(1)
         ret['code'] = code
-        ret['evse_id_din'] = None
-        ret['evse_id_iso'] = None
-        ret['evse_protocols'] = None
-        ret['evse_payment_method'] = None
-        ret['evse_certification_installation_support'] = None
-        ret['evse_certification_update_support'] = None
-        ret['evse_energy_transfer_mode'] = None
+        ret['id_din'] = None
+        ret['id_iso'] = None
+        ret['protocol'] = None
+        ret['payment_method'] = None
+        ret['certification_installation_support'] = None
+        ret['certification_update_support'] = None
+        ret['energy_transfer_mode'] = None
 
         if code == b'\x00':
             lenEvseIdDin = self.payloadReaderReadBytes(1)
@@ -1193,8 +1197,8 @@ class Whitebeet():
             lenEvseIdIso = self.payloadReaderReadBytes(1)
             evseIdIso = self.payloadReaderReadBytes(lenEvseIdDin)
 
-            lenProtocols = self.payloadReaderReadBytes(1)
-            protocols = self.payloadReaderReadBytes(lenProtocols)
+            lenProtocol = self.payloadReaderReadBytes(1)
+            protocol = self.payloadReaderReadBytes(lenProtocol)
 
             lenPaymentMethod = self.payloadReaderReadBytes(1)
             paymentMethod = self.payloadReaderReadBytes(lenPaymentMethod)
@@ -1206,14 +1210,15 @@ class Whitebeet():
             lenEnergyTransferMode = self.payloadReaderReadBytes(1)
             energyTransferMode = self.payloadReaderReadBytes(lenEnergyTransferMode)
 
-            ret['evse_id_din'] = evseIdDin.decode('utf-8')
-            ret['evse_id_iso'] = evseIdIso.decode('utf-8')
-            ret['evse_protocols'] = protocols
-            ret['evse_payment_method'] = paymentMethod
-            ret['evse_certification_installation_support'] = certificateInstallationSupported
-            ret['evse_certification_update_support'] = certificateUpdateSupported
-            ret['evse_energy_transfer_mode'] = energyTransferMode
+            ret['id_din'] = evseIdDin.decode('utf-8')
+            ret['id_iso'] = evseIdIso.decode('utf-8')
+            ret['protocol'] = protocol
+            ret['payment_method'] = paymentMethod
+            ret['certification_installation_support'] = certificateInstallationSupported
+            ret['certification_update_support'] = certificateUpdateSupported
+            ret['energy_transfer_mode'] = energyTransferMode
 
+        self.payloadReaderFinalize()
         return ret
 
     def v2gEvseSetDcChargingParameters(self, parameters):

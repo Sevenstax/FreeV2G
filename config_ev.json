@@ -2,16 +2,13 @@
     "mac": "00:01:01:63:77:31",
     "ev": {
         "evid": "00:01:01:63:77:31",
-        "protocol_count": 2,
         "protocols": [
             0,
             1
         ],
-        "payment_method_count": 1,
         "payment_method": [
             0
         ],
-        "energy_transfer_mode_count": 2,
         "energy_transfer_mode": [
             0,
             4
