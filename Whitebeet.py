@@ -554,22 +554,22 @@ class Whitebeet():
             raise ValueError("protocol needs to be of type list")
         elif not isinstance(config["payment_method"], list):
             raise ValueError("payment_method needs to be of type list")
-        elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list) or len(config["energy_transfer_mode"]) != config["energy_transfer_mode_count"]):
-            raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
+        elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list)):
+            raise ValueError("energy_transfer_mode needs to be of type list")
         elif not isinstance(config["battery_capacity"], int) and not (isinstance(config["battery_capacity"], tuple) and len(config["battery_capacity"]) == 2):
             raise ValueError("config battery_capacity needs to be of type int or tuple with length 2")
         else:
             payload = b""
             payload += config["evid"]
-            payload += len(configuration['protocol']).to_bytes(1, 'big')
+            payload += len(config['protocol']).to_bytes(1, 'big')
             for protocol in config["protocol"]:
                 payload += protocol.to_bytes(1, "big")
 
-            payload += len(configuration['payment_method']).to_bytes(1, 'big')
+            payload += len(config['payment_method']).to_bytes(1, 'big')
             for method in config["payment_method"]:
                 payload += method.to_bytes(1, "big")
 
-            payload += len(configuration['energy_transfer_mode']).to_bytes(1, 'big')
+            payload += len(config['energy_transfer_mode']).to_bytes(1, 'big')
             for mode in config["energy_transfer_mode"]:
                 if mode not in range(0, 6):
                     raise ValueError("values of energy_transfer_mode out of range")
