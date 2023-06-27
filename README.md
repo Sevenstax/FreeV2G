@@ -6,6 +6,10 @@
       888          888     888    .o 888    .o      `888'      .oP     .o `88.    .88'  
      o888o        d888b    `Y8bod8P' `Y8bod8P'       `8'       8888888888  `Y8bood8P'   
 
+## IMPORTANT INFORMATION
+
+**We are currently investigating issues with the firmware update file for EV firmware V01_00_06 and strongly advise against updating your EV module to V01_00_06 using the FWU file obtained from CODICOs download area prior to the 27th of June 2023.**
+
 ## INTRODUCTION
 
 FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using Ethernet host control interface (HCI).
