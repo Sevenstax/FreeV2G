@@ -155,7 +155,7 @@ class Ev():
             print("Wait until an EVSE connects")
             while True:
                 cp_dc = self.whitebeet.controlPilotGetDutyCycle()
-                if timeout != None and timestamp_start + timeout > time.time():
+                if timeout != None and timestamp_start + timeout < time.time():
                     return False
                 if cp_dc < 10.0 and cp_dc > 0.1:
                     print("EVSE connected")
@@ -636,7 +636,7 @@ class Ev():
         print("\"Session Error\" received")
         message = self.whitebeet.v2gEvParseSessionError(data)
 
-        errorType = message['error']
+        errorType = message['code']
         errorString = "error code not available"
 
         if errorType == 1:
@@ -654,10 +654,9 @@ class Ev():
         elif errorType == 7:
             errorString = "EVSE present voltage to low"
         elif errorType == 8:
-            errorString = "Unspecified error (No details delivred by EVSE)"
+            errorString = "Unspecified error (No details delivered by EVSE)"
 
-        print("Error code: {}".format(message['error']))
-        print("\t" + errorString)
+        print("Error code: {} - \"{}\"".format(errorType, errorString))
         self.battery.is_charging = False
 
     def getBattery(self):

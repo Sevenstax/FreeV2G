@@ -95,6 +95,7 @@ class Whitebeet():
         self.v2g_sub_evse_set_cable_certificate_installation_and_update_response = 0x73
         self.v2g_sub_evse_set_meter_receipt = 0x74
         self.v2g_sub_evse_send_notification = 0x75
+        self.v2g_sub_evse_set_session_parameter_timeout = 0x76
 
         # Initialization of the framing interface
         self.framing = FramingInterface()
@@ -165,7 +166,7 @@ class Whitebeet():
             response = None
             while loop == True:
                 req_id = self.framing.build_and_send_frame(mod_id, sub_id, payload)
-                response = self.framing.receive_next_frame(filter_mod=[mod_id, 0xFF], filter_req_id=req_id, timeout=time_end - time_start)
+                response = self.framing.receive_next_frame(filter_mod=[mod_id, 0xFF], filter_sub={ mod_id: sub_id }, filter_req_id=req_id, timeout=time_end - time_start)
                 if response is None:
                     self.connectionError = True
                     raise ConnectionError("Problem with send/receive - Please check your connection!")
@@ -1698,6 +1699,10 @@ class Whitebeet():
         payload += struct.pack("!H", timeout)
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_send_notification, payload)
 
+    def v2gEvseSetSessionParameterTimeout(self, timeoutMs):
+        payload = struct.pack("!H", timeoutMs)
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_session_parameter_timeout, payload)
+
     def v2gEvseParseSessionStarted(self, data):
         """
         Parse a session started message.
@@ -2068,7 +2073,7 @@ class Whitebeet():
         sub_id_list.append(0x8F)
         sub_id_list.append(0x90)
         sub_id_list.append(0x91)
-        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 30)
+        response = self._receive(self.v2g_mod_id, sub_id_list, [0x00, 0xFF], 30)
         return response.sub_id, response.payload
 
     def v2gEvseReceiveRequestSilent(self):
@@ -2093,7 +2098,7 @@ class Whitebeet():
         sub_id_list.append(0x8F)
         sub_id_list.append(0x90)
         sub_id_list.append(0x91)
-        response = self._receiveSilent(self.v2g_mod_id, sub_id_list, 0x00, 0.1)
+        response = self._receiveSilent(self.v2g_mod_id, sub_id_list, [0x00, 0xFF], 0.1)
         if response is not None:
             return response.sub_id, response.payload
         else:
@@ -2118,5 +2123,5 @@ class Whitebeet():
         sub_id_list.append(0xCB)
         sub_id_list.append(0xCC)
         sub_id_list.append(0xCD)
-        response = self._receive(self.v2g_mod_id, sub_id_list, 0x00, 1)
+        response = self._receive(self.v2g_mod_id, sub_id_list, [0x00, 0xFF], 1)
         return response.sub_id, response.payload
