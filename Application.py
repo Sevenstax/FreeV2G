@@ -43,7 +43,7 @@ if __name__ == "__main__":
                 ev.load(config)
 
             # Start the EVSE loop
-            ev.whitebeet.networkConfigSetPortMirrorState(1)
+            ev.whitebeet.networkConfigSetPortMirrorState(args.portmirror)
             ev.loop()
             print("EV loop finished")
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
             #set the Whitebeet time
             #evse.setTime()  
-
+            
             cert_str = input("Inject x509 certificates to EVSE (y/N)?: ")
             if cert_str is not None and cert_str == "y":
                 evse.injectCertificates()
