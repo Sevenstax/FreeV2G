@@ -98,7 +98,7 @@ class Whitebeet():
         self.v2g_sub_evse_set_session_parameter_timeout = 0x76
 
         # Cert Manager
-        self.cm_mod_id = 0x30
+        self.cm_mod_id = 0x2b
         self.cm_sub_own_open = 0x60
         self.cm_sub_own_add = 0x63
         
