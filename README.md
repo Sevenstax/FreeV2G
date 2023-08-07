@@ -12,23 +12,33 @@
 
 ## INTRODUCTION
 
-FreeV2G is a reference implementation in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using Ethernet host control interface (HCI).
+FreeV2G is a reference application written in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using host control interface (HCI).
 
-For detailed information about the WHITE-beet modules please visit https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module and https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module pages. 
-Evaulation boards for the modules can be found on https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev and https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack.
+For detailed information about the WHITE-beet modules please visit the Codico website:
 
-Please use the correct version of the FreeV2G application for your WHITE-beet firmware.
+[WHITE-beet-EI](https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module)
+
+[WHITE-beet-PI](https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module)
+
+Evaulation boards for easy access of the modules are also available:
+
+[WHITE-beet-EI evaluation board](https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev)
+
+[WHITE-beet-PI evaluation board](https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack)
+
+**NOTE:** Please make sure to use matching whitebeet firmware version and FreeV2G tag.
 
 The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE firmware versions and FreeV2G.
 
-| WB FW Version | SW Type | FreeV2G Tag                                                              |
-| ------------- | ------- | ------------------------------------------------------------------------ |
-| V01_01_06     | EIM     | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
-| V01_01_07     | EIM     | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
-| V02_00_00     | PNC     | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
-| V02_00_01     | PNC     | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
+| WB FW Version | Payment Methods | FreeV2G Tag                                                              |
+| ------------- | --------------- | ------------------------------------------------------------------------ |
+| V01_01_06     | EIM             | [EVSE_v1.1.6_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.6_1) |
+| V01_01_07     | EIM             | [EVSE_v1.1.7_1](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v1.1.7_1) |
+| V02_00_00     | EIM + PNC       | [EVSE_v2.0.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.0_0) |
+| V02_00_01     | EIM + PNC       | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
+| V02_01_00     | EIM + PNC       | [EVSE_v2.1.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.1.0_0) |
 
-The following table has information about the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
+The following table shows the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
 
 | WB FW Version | SW Type | FreeV2G Tag                                                          |
 | ------------- | ------- | -------------------------------------------------------------------- |
@@ -36,7 +46,7 @@ The following table has information about the relationship between WHITE-beet-PI
 | V01_00_05     | EIM     | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
 | V01_00_06     | EIM     | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
 
-Actual WHITE-beet SW updates for EVSE abd EV are available at **CODICO PLC documentation area** https://downloads.codico.com/misc/plc under NDA.
+Actual WHITE-beet SW updates for EVSE abd EV are available at [**CODICO PLC documentation area**](https://downloads.codico.com/misc/plc) under NDA.
 
 ## FEATURES
 
@@ -54,7 +64,9 @@ SLAC is performed automatically by the WHITE-beet. A notification is received an
 
 When SLAC was succefully performed the EVSE and the EV are in same network and the high-level communication can be started. The EV will try to discover the EVSE with the SDP protocol and will then connect to the EVSE. The EVSE will choose one of the protocols the EV provided and a V2G session will be started. The service discovery, charge parameter discovery and authorization is performed and the charging loop is started. The EV will continue to charge until it decides to stop the session.
 
-## GETTING FreeV2G
+## Get started
+
+### Installation
 
 To get started first clone the repository. This will get you the latest version of the repository.
 
@@ -71,30 +83,102 @@ $ source .venv/bin/activate
 
 Install the python packages needed
 ```console
-$ pip install --pre scapy[basic]
-$ pip install Cython
-$ pip install python-libpcap
+$ pip install -r requirements.txt
 ```
 
-## GETTING STARTED
+### Usage
 
-Make sure that EVSE and EV are not physically connected on the PLC interface.
+```console
+usage: Application.py [-h] -i INTERFACE [-m MAC] [-r {EV,EVSE}] [-c [CONFIG]] {eth,spi}
 
-Find the MAC address printed on the label of the board in the form of i.e. c4:93:00:22:22:24. This is the MAC address of the PLC chip. To get the MAC address of the ethernet interface substract 2 of the last number of the MAC address. For the example above this would result in the MAC address c4:93:00:22:22:22 for the ethernet interface.
+Codico Whitebeet reference application. The application must be used as root!
 
-Find the ethernet interface the WHITE-beet is connected to with
+positional arguments:
+  {eth,spi}             Type of the interface through which the Whitebeet is connected. ("eth" or "spi").
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INTERFACE, --interface INTERFACE
+                        This is the name of the interface where the Whitebeet is connected to (i.e. for eth "eth0" or spi "spidev0.0").
+  -m MAC, --mac MAC     This is the MAC address of the ethernet interface of the Whitebeet (i.e. "00:01:01:63:77:33").
+  -r {EV,EVSE}, --role {EV,EVSE}
+                        This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode
+  -c [CONFIG], --config [CONFIG]
+                        Path to configuration file. Defaults to ./config.json. A MAC present in the config file will override a MAC provided with -m argument.
+```
+
+### Configuration
+
+In order to use your own configuration you can use a configuration file in json format. The values present in the configuration file will overwrite the default values.
+
+Run the application with configuration file by using `-c` parameter. 
+
+To use an EV configuration:
+
+```console
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -r EV -c ./config_ev.json
+```
+
+To use an EVSE configuration:
+
+```console
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -r EVSE -c ./config_evse.json
+```
+
+If no path is given the configuration file defaults to `./config.json`. Example configurations can be found in `config_ev.json` and `config_evse.json`.
+
+### Ethernet setup
+
+Find the ethernet interface the WHITE-beet is connected to with:
 
 ```console
 $ ip list
 ```
-
-Run the Application in EVSE mode by typing (we need root privileges for raw socket access).
+Here the whitebeet is connected to `eth0` as an example. Run the Application in EVSE mode by typing (the application needs root privileges for raw socket access).
 
 ```console
 $ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
 ```
 
-You should see the following output
+### SPI setup (RaspberryPi)
+
+The example application can be used with SPI as host controller interface. This is tested on a RaspberryPi 4, but should work with any other Linux system that has access to a spidev in userspace.
+
+Set up the WHITE-beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND.
+
+Connect the WHITE-beet to the Raspberry Pi:
+
+| Whietbeet Pin | RaspberryPi Name | wPi | BCM |
+| ------------- | ---------------- | --- | --- |
+| J8 MOSI       | SPI0 MOSI        | 12  | 10  |
+| J8 MISO       | SPI0 MISO        | 13  | 9   |
+| J8 SCK        | SPI0 SCLK        | 14  | 11  |
+| J8 NSS        | GPIO.5           | 5   | 24  |
+| J8 GND        | Ground           |     |     |
+| J1 PD4        | GPIO.3           | 3   | 22  |
+| J1 PD11       | GPIO.2           | 2   | 27  |
+
+An overview over the SPI pinout for the Pi can be found [here](https://pinout.xyz/pinout/spi#).
+
+Power up the WHITE-beet and run the application in SPI mode with the following command
+
+```console
+.venv/bin/python3 Application.py spi -i spidev0.0 -m 00:01:01:63:77:33 -r EVSE
+```
+
+### Running the application
+
+Make sure that EVSE and EV are not physically connected on the PLC interface.
+
+Find the MAC address printed on the label of the board in the form of i.e. c4:93:00:22:22:24. This is the MAC address of the PLC chip. To get the MAC address of the ethernet interface substract 2 of the last number of the MAC address. For the example above this would result in the MAC address c4:93:00:22:22:22 for the ethernet interface.
+
+Now run the application, e.g.:
+
+```console
+$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
+```
+
+You should see a output similar to this:
 
 ```console
 Welcome to Codico Whitebeet EVSE reference implementation
@@ -126,7 +210,7 @@ Set EVSE ID: DE*ABC*E*00001*01
 Authorize the vehicle? Type "yes" or "no" in the next 59s:
 ```
 
-Now you can authorize the vehicle by typing "yes", the application will continue. All the parameters that are exchanged between the vehicle and the charging station are printed to the console.
+Now you can authorize the vehicle by typing "yes", or by just pressing `Enter`. All the parameters that are exchanged between the vehicle and the charging station are printed to the console.
 
 ```console
 Vehicle was authorized by user!
@@ -182,57 +266,4 @@ SOC: 50%
 "Session stopped" received
 EVSE loop finished
 Goodbye!
-```
-## EV SUPPORT
-
-Run the application in EV mode by typing
-
-```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV
-```
-
-## CONFIGURATION
-
-You can set the configuration via a configuration file in json format.
-
-Run the application with configuration file
-
-```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:33:33:33 -r EV -c $PATH_TO_CONFIG_FILE
-```
-
-If no path is given the configuration file defaults to ./config.json. An example configuration can be found in config_ev.json or config_evse.json. The file config.json can be either a symlink to config_ev.json or config_evse.json.
-
-## CERTIFICATES
-
-The EVSE supports injecting of certificates now. The path to the certificates can be set in the config_evse.json file.
-
-## RASPBERRY PI SPI
-
-Install the python packages needed
-```console
-$ pip install spidev
-$ pip install RPi.GPIO
-```
-
-Connect the WHITE-beet to the Raspberry Pi
-
-The SPI pinout for the Pi can be found on https://pinout.xyz/pinout/spi#
-
-| WB Pin  | Raspberry Pi Pin |
-| ------- | ---------------- |
-| J8 MOSI | SPI0 MOSI        |
-| J8 MISO | SPI0 MISO        |
-| J8 SCK  | SPI0 SCLK        |
-| J8 NSS  | GPIO 24          |
-| J8 GND  | Ground           |
-| J1 PD4  | GPIO 22          |
-| J1 PD11 | GPIO 27          |
-
-Set up the WHITE-beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND on J4.
-
-Power up the WHITE-beet and run the application in SPI mode with the following command
-
-```console
-sudo .venv/bin/python3 Application.py spi -i spidev0.0 -m 00:01:01:63:77:33 -r EVSE
 ```
