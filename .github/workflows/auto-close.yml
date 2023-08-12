@@ -20,6 +20,6 @@ jobs:
           days-before-issue-close: 7
           any-of-labels: "stale,wait for customer"
           stale-issue-label: "stale"
-          stale-issue-message: "This issue has been marked stale because it has been open for 14 day with no activity. Please update this issue or it will be closed in the next 7 days."
-          close-issue-message: "This issue was closed because it has been inactive for 7 day since being marked as stale."
+          stale-issue-message: "This issue has been marked as stale because it has been open for 14 days with no activity. Please update this issue or it will be closed in the next 7 days."
+          close-issue-message: "This issue was closed because it has been inactive for 7 days since being marked as stale. If your issue still persists, feel free to reopen!"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
