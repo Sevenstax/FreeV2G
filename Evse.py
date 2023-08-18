@@ -11,6 +11,7 @@ class Evse():
         self.schedule = None
         self.evse_config = None
         self.charging = False
+        self.paused = False
 
     def __enter__(self):
         return self
@@ -133,6 +134,14 @@ class Evse():
         print("Start V2G")
         self.whitebeet.v2gEvseStartListen()
         while True:
+            if self.paused:
+                self.whitebeet.slacPause()
+                time.sleep(5)
+                self.whitebeet.slacResume()
+                time.sleep(5)
+                self.whitebeet.v2gEvseStartListen()
+                self.paused = False
+
             if self.charging:
                 id, data = self.whitebeet.v2gEvseReceiveRequestSilent()
 
@@ -183,7 +192,8 @@ class Evse():
                 self._handleWeldingDetectionStarted(data)
             elif id == 0x8C:
                 self._handleSessionStopped(data)
-                break
+                if not self.paused:
+                    break
             elif id == 0x8D:
                 pass
             elif id == 0x8E:
@@ -232,7 +242,7 @@ class Evse():
         print(message['timeout'])
         timeout = int(message['timeout'] / 1000) - 1
         # Promt for authorization status
-        auth_str = input("Authorize the vehicle? Type \"yes\" or \"no\" in the next {}s: ".format(timeout))
+        #auth_str = input("Authorize the vehicle? Type \"yes\" or \"no\" in the next {}s: ".format(timeout))
         auth_str = "yes"
         if auth_str is not None and auth_str == "yes":
             print("Vehicle was authorized by user!")
@@ -473,6 +483,11 @@ class Evse():
         message = self.whitebeet.v2gEvseParseSessionStopped(data)
         print('Closure type: {}'.format(message['closure_type']))
         self.charger.stop()
+        if message['closure_type'] == 0x01:
+            self.whitebeet.v2gEvseStopListen()
+            self.paused = True
+        else:
+            self.paused = False
 
     def _handleSessionError(self, data):
         """

@@ -72,6 +72,7 @@ class Whitebeet():
         self.v2g_sub_ev_start_charging = 0xAC
         self.v2g_sub_ev_stop_charging = 0xAD
         self.v2g_sub_ev_stop_session = 0xAE
+        self.v2g_sub_ev_resume_session = 0xAF
        
 
         # EVSE sub IDs
@@ -437,6 +438,12 @@ class Whitebeet():
         response = self._sendReceive(self.slac_mod_id, self.slac_sub_stop, None)
         if response.payload[0] not in [0, 0x10]:
             raise Warning("SLAC module did not accept our stop command")
+        
+    def slacPause(self):
+        self._sendReceiveAck(self.slac_mod_id, 0x4D, None)
+
+    def slacResume(self):
+        self._sendReceiveAck(self.slac_mod_id, 0x4E, None)
 
     def slacStartMatching(self):
         """
@@ -891,7 +898,7 @@ class Whitebeet():
         """
         Stops the charging
         """
-        if not isinstance(renegotiation, bool):
+        if not isinstance(renegotiation, int):
             raise ValueError("Parameter renegotiation has to be of type bool")
         else:
             payload = b""
@@ -904,6 +911,9 @@ class Whitebeet():
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_stop_session, None)
+
+    def v2gResumeSession(self):
+        self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_resume_session, None)
     
     def v2gEvParseSessionStarted(self, data):
         """
@@ -2123,5 +2133,7 @@ class Whitebeet():
         sub_id_list.append(0xCB)
         sub_id_list.append(0xCC)
         sub_id_list.append(0xCD)
+        sub_id_list.append(0xCE)
+        sub_id_list.append(0xCF)
         response = self._receive(self.v2g_mod_id, sub_id_list, [0x00, 0xFF], 1)
         return response.sub_id, response.payload

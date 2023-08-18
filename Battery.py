@@ -9,7 +9,7 @@ class Battery():
         self.is_charging = False
         self.is_full = False
         self._capacity = 50000
-        self._level = 49000 
+        self._level = 1000
         self.full_soc = 100
         self.bulk_soc = 80
         self._soc = 0

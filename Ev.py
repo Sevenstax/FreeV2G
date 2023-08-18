@@ -38,6 +38,8 @@ class Ev():
         self.currentAcNominalVoltage = 0
 
         self.state = "init"
+        self.pause = False
+        self.pauseTimer = 0
 
     def __enter__(self):
         return self
@@ -320,6 +322,10 @@ class Ev():
                         self.battery.target_current = maxPower // self.battery.target_voltage
 
                     # check SOC
+                    if time.time() - self.pauseTimer > 5:
+                        self.battery.is_charging = False
+                        self.whitebeet.v2gStopCharging(0x02)
+
                     if self.battery.getSOC() < self.battery.full_soc:
                         self.DCchargingParams["soc"] = self.battery.getSOC()
                         try:                  
@@ -342,12 +348,35 @@ class Ev():
             elif self.state == "chargingStopped":
                 self.battery.is_charging = False
                 try:
-                    self.state = "waitSessionStopped"
-                    self.whitebeet.v2gStopSession()
+                    if self.pause:
+                        self.state = "waitSessionPaused"
+                        self.whitebeet.v2gStopSession()
+                    else:
+                        self.state = "waitSessionStopped"
+                        self.whitebeet.v2gStopSession()
                 except Warning as e:
                     print("Warning: {}".format(e))
                 except ConnectionError as e:
                     print("ConnectionError: {}".format(e))
+
+            elif self.state == "waitSessionPaused":
+                pass
+
+            elif self.state == "sessionPaused":
+                print("Session paused")
+                self.whitebeet.slacPause()
+                self.whitebeet.controlPilotSetResistorValue(0)
+                time.sleep(5)
+                self.whitebeet.controlPilotSetResistorValue(1)
+                time.sleep(0.15)
+                self.whitebeet.controlPilotSetResistorValue(0)
+                self.whitebeet.slacResume()
+                time.sleep(5)
+                self.whitebeet.v2gResumeSession()
+                self.state = "waitSessionResumed"
+
+            elif self.state == "waitSessionResumed":
+                pass
 
             elif self.state == "postChargingReady":
                 pass
@@ -388,6 +417,10 @@ class Ev():
                     self._handleNotificationReceived(data)
                 elif id == 0xCD:
                     self._handleSessionError(data)
+                elif id == 0xCE:
+                    self.state = "sessionPaused"
+                elif id == 0xCF:
+                    self.state = "sessionStared"
                 else:
                     print("Message ID not supported: {:02x}".format(id))
                     break
@@ -585,6 +618,7 @@ class Ev():
         """
         print("\"Charging Started\" received")
         self.whitebeet.v2gEvParseChargingStarted(data)
+        self.pauseTimer = time.time()
         self.state = "chargingStarted"
 
     def _handleChargingStopped(self, data):
