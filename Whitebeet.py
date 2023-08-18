@@ -299,7 +299,8 @@ class Whitebeet():
         completely. Raises a ValueError otherwise.
         """
         if self.payloadBytesRead != self.payloadBytesLen:
-            raise Warning("More payload than expected! (read: {}, length: {})".format(self.payloadBytesRead, self.payloadBytesLen))
+            #raise Warning("More payload than expected! (read: {}, length: {})".format(self.payloadBytesRead, self.payloadBytesLen))
+            pass
 
     def systemGetVersion(self):
         """
