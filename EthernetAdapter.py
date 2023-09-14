@@ -45,6 +45,7 @@ class EthernetAdapter(SUTAdapter):
     def receive(self):
         if not self.queue_rx.empty():
             frame = self.queue_rx.get_nowait()
+            print("Received frame from queue")
             return frame
         else:
             return None
@@ -53,6 +54,7 @@ class EthernetAdapter(SUTAdapter):
     packet callback for our custom ethernet type
     """
     def pkt_callback(self, packet):
+        print("Got packet")
         if system_type() == "Linux":
             payload = Ether(packet)[Ether].load[4:]
         else:
@@ -88,6 +90,7 @@ class EthernetAdapter(SUTAdapter):
             frame = self.pack_and_parse_frame(
                 b"\xc0" + pdata + crc.to_bytes(1, "big") + b"\xc1")
 
+            print("Putting frame into receive queue")
             self.queue_rx.put_nowait(frame)
         else:
             print("Could not catch end of frame")
@@ -97,11 +100,14 @@ class EthernetAdapter(SUTAdapter):
     filter packets with custom ethernet type
     """
     def process_receive(self):
+        print("Receive process started")
         if system_type() == "Linux":
+            print("Starting sniff process (unix)...")
             sniffobj = Sniff(self.sut_interface, filters="ether proto 0x6003 and ether src " + self.dut_mac, promisc=1)
             for plen, t, buf in sniffobj.capture():
                 self.pkt_callback(buf)
         else:
+            print("Starting sniff process (win)...")
             sniff(filter='ether proto 0x6003 and ether src ' + self.dut_mac, iface=self.sut_interface,
                 prn=self.pkt_callback)
 
@@ -109,6 +115,7 @@ class EthernetAdapter(SUTAdapter):
     start process waiting for mac frames of specific ethernet type
     """
     def start(self):
+        print("Starting Ethernet Adapter...")
 
         self.recv_process = multiprocessing.Process(target=self.process_receive)
 
@@ -128,6 +135,7 @@ class EthernetAdapter(SUTAdapter):
             socket = conf.L2socket(iface=self.sut_interface)
             self.packet = Ether(dst=self.dut_mac, type=0x6003)
 
+        print("Starting receive process...")
         self.recv_process.start()
 
         """

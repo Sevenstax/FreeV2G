@@ -184,6 +184,7 @@ class FramingInterface():
                     # debug_log(self.printable_frame(frame))
 
             if frame is not None:
+                print("Processing frame...")
                 if filter_req_id is not None:
                     # Filter for request ID
                     if isinstance(filter_req_id, int):
@@ -226,7 +227,10 @@ class FramingInterface():
                         satisfied = False
 
                 if not satisfied:
+                    print("appending to backlog")
                     temp_backlog.append(frame)
+                else:
+                    print("got expected frame")
             else:
                 satisfied = False
 
