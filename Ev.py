@@ -18,11 +18,8 @@ class Ev():
 
         self.config = {}
         self.config["evid"] = bytes.fromhex(mac.replace(":",""))
-        self.config["protocol_count"] = 2
-        self.config["protocols"] = [0, 1]
-        self.config["payment_method_count"] = 1
+        self.config["protocol"] = [0, 1]
         self.config["payment_method"] = [0]
-        self.config["energy_transfer_mode_count"] = 2
         self.config["energy_transfer_mode"] = [0, 4]
         self.config["battery_capacity"] = self.battery.getCapacity()
 
@@ -50,6 +47,10 @@ class Ev():
         if hasattr(self, "whitebeet"):
             del self.whitebeet
 
+    def printConfig(self):
+        print("EV configuration: " + str(config))
+        print(self.config)
+
     def load(self, configDict):
         #TODO: change to more generic way
         # First(!) parse battery config
@@ -74,7 +75,7 @@ class Ev():
                     else:
                         self.config[key] = configDict["ev"][key]
                 except:
-                    print(key + " not in EV.config")
+                    print(key + " not in ev.config")
                     continue
 
         self._updateChargingParameter()
