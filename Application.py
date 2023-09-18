@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mac', type=str, help='This is the MAC address of the ethernet interface of the Whitebeet (i.e. "{}").'.format(WHITEBBET_DEFAULT_MAC))
     parser.add_argument('-r', '--role', type=str, choices=('EV', 'EVSE'), help='This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode')
     parser.add_argument('-c', '--config', type=str, help='Path to configuration file. Defaults to ./config.json.\nA MAC present in the config file will override a MAC provided with -m argument.', nargs='?', const="./config.json")
+    parser.add_argument('-p', '--portmirror', help='Enables port mirror.', action='store_true')
     args = parser.parse_args()
 
     # If no MAC address was given set it to the default MAC address of the Whitebeet
@@ -31,8 +32,10 @@ if __name__ == "__main__":
                     mac = config['mac']
 
         except FileNotFoundError as err:
+            config = None
             print("Configuration file " + str(args.config) + " not found. Use default configuration.")
-
+    else:
+        config = None
 
     # role is EV
     if(args.role == "EV"):  
@@ -64,7 +67,7 @@ if __name__ == "__main__":
                 evse.injectCertificates()
             else:
                 # Start the EVSE loop
-                evse.whitebeet.networkConfigSetPortMirrorState(1)
+                evse.whitebeet.networkConfigSetPortMirrorState(args.portmirror)
                 evse.loop()
                 print("EVSE loop finished")
 
