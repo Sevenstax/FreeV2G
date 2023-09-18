@@ -480,7 +480,7 @@ class Ev():
 
         # check target current
         self.currentAcMaxCurrent = message["max_current"]
-        self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.currentAcMaxCurrent
+        self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.battery.in_voltage
         if self.battery.in_current >= self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
             print("Battery current out of range!")
             if self.battery.is_charging == True:
