@@ -534,7 +534,12 @@ class Ev():
         self.schedule["interval"] = interval
         self.schedule["power"] = power
 
-        self.schedule = {'schedule_tuple_id': 1, 'charging_profile_entries_count': 3, 'start': [0, 1800, 3600], 'interval': [1800, 1800, 82800], 'power': [25000, 18750, 12500]}
+        self.schedule = {'schedule_tuple_id': message['tuple_id'],
+                         'charging_profile_entries_count': message['entries_count'],
+                         'start': [v['start'] for v in message['entries']],
+                         'interval': [v['interval'] for v in message['entries']],
+                         'power': [v['power'] for v in message['entries']]
+                         }
 
         self.scheduleStartTime = time.time()
         self.currentSchedule = 0
