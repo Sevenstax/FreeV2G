@@ -57,7 +57,7 @@ class Evse():
             print("Wait until an EV connects")
             while True:
                 cp_state = self.whitebeet.controlPilotGetState()
-                if timeout != None and timestamp_start + timeout > time.time():
+                if timeout is not None and time.time() > timestamp_start + timeout:
                     return False
                 if cp_state == 0:
                     time.sleep(0.1)
