@@ -1,10 +1,9 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Problems / Bugs
+about: Create an issue if you are experience a problem with FreeV2G / Whitebeet or think you may encountered a bug.
 title: ''
 labels: ''
 assignees: ''
-
 ---
 
 **Your Setup**
