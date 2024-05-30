@@ -1,0 +1,3 @@
+scapy
+python-libpcap
+Cython
