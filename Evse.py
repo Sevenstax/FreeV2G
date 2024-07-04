@@ -11,8 +11,8 @@ class Evse():
         self.schedule = None
         
         self.config = {}
-        self.config["evse_id_DIN"] = '+49*123*456*789'
-        self.config["evse_id_ISO"] = 'DE*A23*E45B*78C'
+        self.config["id_din"] = '+49*123*456*789'
+        self.config["id_iso"] = 'DE*A23*E45B*78C'
         self.config["protocol"] = [0, 1]
         self.config["payment_method"] = [0]
         self.config["energy_transfer_mode"] = [0, 1, 2, 3]
@@ -57,12 +57,12 @@ class Evse():
         else:
             self.certs_folder = "."
 
-        if "evse" in configDict:
-            for key in configDict["evse"]:
+        if "configuration" in configDict:
+            for key in configDict["configuration"]:
                 try:
-                    self.config[key] = configDict["evse"][key]
+                    self.config[key] = configDict["configuration"][key]
                 except:
-                    print(key + " not in EVSE config")
+                    print(key + " not in EVSE configuration")
                     continue
         
 

@@ -12,23 +12,23 @@
 
 ## INTRODUCTION
 
-FreeV2G is a reference application written in python to control the 8devices WHITE-beet-EI ISO15118 EVSE and WHITE-beet-PI ISO15118 EV modules using host control interface (HCI).
+FreeV2G is a reference application written in python to control the 8devices WHITE Beet-EI ISO15118 EVSE and WHITE Beet-PI ISO15118 EV modules using host control interface (HCI).
 
-For detailed information about the WHITE-beet modules please visit the Codico website:
+For detailed information about the WHITE Beet modules please visit the Codico website:
 
-[WHITE-beet-EI](https://www.codico.com/en/white-beet-ei-evse-embedded-iso15118-module)
+[WHITE Beet-EI](https://www.codico.com/en/WHITE Beet-ei-evse-embedded-iso15118-module)
 
-[WHITE-beet-PI](https://www.codico.com/en/white-beet-pi-pev-embedded-iso15118-module)
+[WHITE Beet-PI](https://www.codico.com/en/WHITE Beet-pi-pev-embedded-iso15118-module)
 
 Evaulation boards for easy access of the modules are also available:
 
-[WHITE-beet-EI evaluation board](https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev)
+[WHITE Beet-EI evaluation board](https://www.codico.com/en/wb-carrier-board-ei-1-1-evse-embedded-iso15118-sw-stack-ev)
 
-[WHITE-beet-PI evaluation board](https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack)
+[WHITE Beet-PI evaluation board](https://www.codico.com/en/wb-carrier-board-pi-1-1-pev-embedded-iso15118-sw-stack)
 
-**NOTE:** Please make sure to use matching whitebeet firmware version and FreeV2G tag.
+**NOTE:** Please make sure to use matching WHITE Beet firmware version and FreeV2G tag.
 
-The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE firmware versions and FreeV2G.
+The following table shows the relationship between WHITE Beet-EI ISO15118 EVSE firmware versions and FreeV2G.
 
 | WB FW Version | Payment Methods | FreeV2G Tag                                                              |
 | ------------- | --------------- | ------------------------------------------------------------------------ |
@@ -38,7 +38,7 @@ The following table shows the relationship between WHITE-beet-EI ISO15118 EVSE f
 | V02_00_01     | EIM + PNC       | [EVSE_v2.0.1_4](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.0.1_4) |
 | V02_01_00     | EIM + PNC       | [EVSE_v2.1.0_0](https://github.com/Sevenstax/FreeV2G/tree/EVSE_v2.1.0_0) |
 
-The following table shows the relationship between WHITE-beet-PI ISO15118 EV firmware and FreeV2G.
+The following table shows the relationship between WHITE Beet-PI ISO15118 EV firmware and FreeV2G.
 
 | WB FW Version | SW Type | FreeV2G Tag                                                          |
 | ------------- | ------- | -------------------------------------------------------------------- |
@@ -46,11 +46,11 @@ The following table shows the relationship between WHITE-beet-PI ISO15118 EV fir
 | V01_00_05     | EIM     | [EV_v1.0.5_0](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.5_0) |
 | V01_00_06     | EIM     | [EV_v1.0.6_1](https://github.com/Sevenstax/FreeV2G/tree/EV_v1.0.6_1) |
 
-Actual WHITE-beet SW updates for EVSE abd EV are available at [**CODICO PLC documentation area**](https://downloads.codico.com/misc/plc) under NDA.
+Actual WHITE Beet SW updates for EVSE abd EV are available at [**CODICO PLC documentation area**](https://downloads.codico.com/misc/plc) under NDA.
 
 ## FEATURES
 
-The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE-beet. Other features are the WHITE-beet class which answers the parameter requests of the WHITE-beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
+The main feature of this implementation is the parsing of the protocol used to communicate with the WHITE Beet. Other features are the WHITE Beet class which answers the parameter requests of the WHITE Beet and the charger class which simulates the voltage and current based on the given parameters during initialization and on the parameters received by the EV during the charging process.
 
 ### Control Pilot
 
@@ -58,7 +58,7 @@ There is a basic control pilot implemenation which detects the EV plugin and set
 
 ### SLAC
 
-SLAC is performed automatically by the WHITE-beet. A notification is received and the application is ready for high-level communication.
+SLAC is performed automatically by the WHITE Beet. A notification is received and the application is ready for high-level communication.
 
 #### V2G High-Level Communication
 
@@ -83,70 +83,56 @@ $ source .venv/bin/activate
 
 Install the python packages needed
 ```console
-$ pip install -r requirements.txt
+$ pip install -r requirements_eth.txt
 ```
 
 ### Usage
 
 ```console
-usage: Application.py [-h] -i INTERFACE [-m MAC] [-r {EV,EVSE}] [-c [CONFIG]] {eth,spi}
+usage: Application.py [-h] config
 
-Codico Whitebeet reference application. The application must be used as root!
+Codico WHITE Beet reference implementation.
 
 positional arguments:
-  {eth,spi}             Type of the interface through which the Whitebeet is connected. ("eth" or "spi").
+  config      Path to configuration file. Defaults to ./config.json.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -i INTERFACE, --interface INTERFACE
-                        This is the name of the interface where the Whitebeet is connected to (i.e. for eth "eth0" or spi "spidev0.0").
-  -m MAC, --mac MAC     This is the MAC address of the ethernet interface of the Whitebeet (i.e. "00:01:01:63:77:33").
-  -r {EV,EVSE}, --role {EV,EVSE}
-                        This is the role of the Whitebeet. "EV" for EV mode and "EVSE" for EVSE mode
-  -c [CONFIG], --config [CONFIG]
-                        Path to configuration file. Defaults to ./config.json. A MAC present in the config file will override a MAC provided with -m argument.
+options:
+  -h, --help  show this help message and exit
 ```
 
 ### Configuration
 
-In order to use your own configuration you can use a configuration file in json format. The values present in the configuration file will overwrite the default values.
-
-Run the application with configuration file by using `-c` parameter. 
-
-To use an EV configuration:
-
-```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -r EV -c ./config_ev.json
-```
-
-To use an EVSE configuration:
-
-```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -r EVSE -c ./config_evse.json
-```
-
-If no path is given the configuration file defaults to `./config.json`. Example configurations can be found in `config_ev.json` and `config_evse.json`.
+Configuration is done via a configuration file. If no path is given the configuration file defaults to `./config.json`. Example configurations can be found in `config_ev.json` and `config_evse.json`.
 
 ### Ethernet setup
 
-Find the ethernet interface the WHITE-beet is connected to with:
+Find the ethernet interface the WHITE Beet is connected to with:
 
 ```console
 $ ip list
 ```
-Here the whitebeet is connected to `eth0` as an example. Run the Application in EVSE mode by typing (the application needs root privileges for raw socket access).
+Here the WHITE Beet is connected to `eth0`, therefore in the config file the `interface` key is set to:
+
+```json
+    "interface": {
+        "type": "eth",
+        "name": "eth0"
+    }
+```
+
+Run the Application in EVSE mode by typing (the application needs root privileges for raw socket access).
 
 ```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
+$ sudo .venv/bin/python3 Application.py config_evse.json
 ```
 
 ### SPI setup (RaspberryPi)
 
 The example application can be used with SPI as host controller interface. This is tested on a RaspberryPi 4, but should work with any other Linux system that has access to a spidev in userspace.
 
-Set up the WHITE-beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND.
+Set up the WHITE Beet to start in SPI mode by connecting PC2 to 3.3V and PA4 to GND.
 
-Connect the WHITE-beet to the Raspberry Pi:
+Connect the WHITE Beet to the Raspberry Pi:
 
 | Whietbeet Pin | RaspberryPi Name | wPi | BCM |
 | ------------- | ---------------- | --- | --- |
@@ -160,10 +146,19 @@ Connect the WHITE-beet to the Raspberry Pi:
 
 An overview over the SPI pinout for the Pi can be found [here](https://pinout.xyz/pinout/spi#).
 
-Power up the WHITE-beet and run the application in SPI mode with the following command
+In the config file the `interface` keyword is set to:
+
+```json
+    "interface": {
+        "type": "spi",
+        "name": "spidev0.0"
+    }
+```
+
+Power up the WHITE Beet and run the application with the following command
 
 ```console
-.venv/bin/python3 Application.py spi -i spidev0.0 -m 00:01:01:63:77:33 -r EVSE
+.venv/bin/python3 Application.py config_evse.json
 ```
 
 ### Running the application
@@ -172,16 +167,34 @@ Make sure that EVSE and EV are not physically connected on the PLC interface.
 
 Find the MAC address printed on the label of the board in the form of i.e. c4:93:00:22:22:24. This is the MAC address of the PLC chip. To get the MAC address of the ethernet interface substract 2 of the last number of the MAC address. For the example above this would result in the MAC address c4:93:00:22:22:22 for the ethernet interface.
 
+Update the config file accordingly (for example `config_evse.json`):
+
+```json
+  {
+    "mac": "c4:93:00:22:22:22",
+    "interface": {
+        "type": "eth",
+        "name": "eth-wb1-evse"
+    },
+    "portmirror": true,
+    "evse": {
+      ...
+      ...
+      ...
+    }
+  }
+```
+
 Now run the application, e.g.:
 
 ```console
-$ sudo .venv/bin/python3 Application.py eth -i eth0 -m c4:93:00:22:22:22 -r EVSE
+$ sudo .venv/bin/python3 config_evse.json
 ```
 
 You should see a output similar to this:
 
 ```console
-Welcome to Codico Whitebeet EVSE reference implementation
+Welcome to Codico WHITE Beet EVSE reference implementation
 Initiating framing interface
 iface: eth0, mac: c4:93:00:22:22:22
 Set the CP mode to EVSE
