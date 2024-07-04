@@ -8,6 +8,25 @@ from FramingInterface import *
 
 class Whitebeet():
 
+    protocols = [
+        "din",
+        "iso"
+    ]
+
+    payment_methods = [
+        "eim",
+        "pnc"
+    ]
+
+    energy_transfer_modes = [
+        'dc_core',
+        'dc_extended',
+        'dc_combo_core',
+        'dc_unique',
+        'ac_single_phase',
+        'ac_three_phase'
+    ]
+
     def __init__(self, iftype, iface, mac):
         self.logger = Logger()
 
@@ -72,7 +91,7 @@ class Whitebeet():
         self.v2g_sub_ev_start_charging = 0xAC
         self.v2g_sub_ev_stop_charging = 0xAD
         self.v2g_sub_ev_stop_session = 0xAE
-       
+
 
         # EVSE sub IDs
         self.v2g_sub_evse_set_configuration = 0x60
@@ -96,6 +115,29 @@ class Whitebeet():
         self.v2g_sub_evse_set_meter_receipt = 0x74
         self.v2g_sub_evse_send_notification = 0x75
         self.v2g_sub_evse_set_session_parameter_timeout = 0x76
+
+        # Cert Manager Own Certificates
+        self.cm_own_mod_id = 0x2b
+        self.cm_own_sub_open = 0x60
+        self.cm_own_sub_get_certificate_info = 0x61
+        self.cm_own_sub_get_next_entry = 0x62
+        self.cm_own_sub_add_certificate = 0x63
+        self.cm_own_sub_remove_certificate = 0x64
+        self.cm_own_sub_add_private_key = 0x65
+        self.cm_own_sub_remove_private_key = 0x66
+        self.cm_own_sub_add_ocsp_response = 0x67
+        self.cm_own_index_synchronized = 0xa0
+        self.cm_own_certificate_status_message = 0xa1
+
+        # Cert Manager Trust Store
+        self.cm_trust_mod_id = 0x2c
+        self.cm_trust_sub_open = 0x40
+        self.cm_trust_sub_get_certificate_info = 0x41
+        self.cm_trust_sub_get_next_entry = 0x42
+        self.cm_trust_sub_add_certificate = 0x43
+        self.cm_trust_sub_remove_certificate = 0x44
+        self.cm_trust_index_synchronized = 0x80
+        self.cm_trust_certificate_status = 0x81
 
         # Initialization of the framing interface
         self.framing = FramingInterface()
@@ -150,7 +192,7 @@ class Whitebeet():
         else:
             retValue += value[0].to_bytes(2, "big")
             retValue += value[1].to_bytes(1, "big")
-        
+
         return retValue
 
     def _sendReceive(self, mod_id, sub_id, payload):
@@ -535,50 +577,60 @@ class Whitebeet():
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_stop, None)
 
-    # EV 
+    # EV
     def v2gEvSetConfiguration(self, config):
         """
         Sets the configuration for EV mode
         """
-        if not ({"evid", "protocol_count", "protocols", "payment_method_count", "payment_method", "energy_transfer_mode_count", "energy_transfer_mode", "battery_capacity", "battery_capacity"} <= set(config)):
+        if not ({"id", "protocol", "payment_method", "energy_transfer_mode", "battery_capacity"} <= set(config)):
             raise ValueError("Missing keys in config dict")
 
-        if config["evid"] is not None and (not isinstance(config["evid"], bytes) or len(config["evid"]) != 6):
-            raise ValueError("evid needs to be of type byte with length 6")
-        elif not isinstance(config["protocol_count"], int) or not (1 <= config["protocol_count"] <= 2):
-            raise ValueError("protocol_count needs to be of type int with value 1 or 2")
-        elif config["protocols"] is not None and (not isinstance(config["protocols"], list) or len(config["protocols"]) != config["protocol_count"]):
-            raise ValueError("protocol needs to be of type int with value 0 or 1")
-        elif not isinstance(config["payment_method_count"], int):
-            raise ValueError("payment_method_count needs to be of type int")
+        if config["id"] is not None and (not isinstance(config["id"], bytes) or len(config["id"]) != 6):
+            raise ValueError("id needs to be of type byte with length 6")
+        elif config["protocol"] is not None and (not isinstance(config["protocol"], list)):
+            raise ValueError("protocol needs to be of type list")
         elif not isinstance(config["payment_method"], list):
             raise ValueError("payment_method needs to be of type list")
-        elif not isinstance(config["energy_transfer_mode_count"], int) or not (1 <= config["energy_transfer_mode_count"] <= 6):
-            raise ValueError("energy_transfer_mode_count needs to be of type int with value between 1 and 6")
-        elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list) or len(config["energy_transfer_mode"]) != config["energy_transfer_mode_count"]):
-            raise ValueError("energy_transfer_mode needs to be of type list with length of energy_transfer_mode_count")
+        elif config["energy_transfer_mode"] is not None and (not isinstance(config["energy_transfer_mode"], list)):
+            raise ValueError("energy_transfer_mode needs to be of type list")
         elif not isinstance(config["battery_capacity"], int) and not (isinstance(config["battery_capacity"], tuple) and len(config["battery_capacity"]) == 2):
             raise ValueError("config battery_capacity needs to be of type int or tuple with length 2")
         else:
             payload = b""
-            payload += config["evid"]
-            payload += config["protocol_count"].to_bytes(1, "big")
-            for protocol in config["protocols"]:
-                payload += protocol.to_bytes(1, "big")
+            payload += config["id"]
 
-            payload += config["payment_method_count"].to_bytes(1, "big")
-            for method in config["payment_method"]:
-                payload += method.to_bytes(1, "big")
+            payload += len(config['protocol']).to_bytes(1, 'big')
+            for val in config['protocol']:
+                if val in 'din':
+                    payload += b'\0x00'
+                elif val in 'iso':
+                    payload += b'\0x01'
 
-            payload += config["energy_transfer_mode_count"].to_bytes(1, "big")
-            for mode in config["energy_transfer_mode"]:
-                if mode not in range(0, 6):
-                    raise ValueError("values of energy_transfer_mode out of range")
-                else:
-                    payload += mode.to_bytes(1, "big")
+            payload += len(config['payment_method']).to_bytes(1, 'big')
+            for val in config['payment_method']:
+                if val in 'eim':
+                    payload += b'\0x00'
+                elif val in 'pnc':
+                    payload += b'\0x01'
+
+            payload += len(config['energy_transfer_mode']).to_bytes(1, 'big')
+            for val in config['energy_transfer_mode']:
+                payload += val.to_bytes(1, "big")
+                if val in 'dc_core':
+                    payload += b'\0x00'
+                elif val in 'dc_extended':
+                    payload += b'\0x01'
+                elif val in 'dc_combo_core':
+                    payload += b'\0x02'
+                elif val in 'dc_unique':
+                    payload += b'\0x03'
+                elif val in 'ac_single_phase':
+                    payload += b'\0x04'
+                elif val in 'ac_three_phase':
+                    payload += b'\0x05'
 
             payload += self._valueToExponential(config["battery_capacity"])
-            
+
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_configuration, payload)
 
     def v2gEvGetConfiguration(self):
@@ -586,37 +638,47 @@ class Whitebeet():
         Get the configuration of EV mdoe
         Returns dictionary
         """
-        
+
         ret = {}
         response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
-        self.payloadReaderReadInt(1)
 
-        ret["evid"] = self.payloadReaderReadBytes(6)
+        code = self.payloadReaderReadInt(1)
+        ret['code'] = code
+        ret['id'] = None
+        ret['protocol'] = None
+        ret['payment_method'] = None
+        ret['energy_transfer_mode'] = None
+        ret["battery_capacity"] = None
 
-        ret["protocol_count"] = self.payloadReaderReadInt(1)
-        prot_list = []
-        for i in range(ret["protocol_count"]):
-            prot_list.append(self.payloadReaderReadInt(1))
-        ret["protocol"] = prot_list
-        
-        ret["payment_method_count"] = self.payloadReaderReadInt(1)
-        met_list = []
-        for i in range(ret["payment_method_count"]):
-            met_list.append(self.payloadReaderReadInt(1))
-        ret["payment_method"] = met_list
+        if code == b'\x00':
+            ret["id"] = self.payloadReaderReadBytes(6)
 
-        ret["energy_transfer_mode_count"] = self.payloadReaderReadInt(1)
-        met_list = []
-        for i in range(ret["energy_transfer_mode_count"]):
-            met_list.append(self.payloadReaderReadInt(1))
+            lenProtocol = self.payloadReaderReadInt(1)
+            prot_list = []
+            for i in range(lenProtocol):
+                prot_list.append(self.protocols[self.payloadReaderReadInt(1)])
 
-        ret["energy_transfer_mode"] = met_list
-        
-        #TODO: wrong battery capacity
-        ret["battery_capacity"] = self.payloadReaderReadExponential()
-        #TODO: payload to short
-        #ret["departure_time"] = self.payloadReaderReadInt(4)
+            lenPaymentMethod = self.payloadReaderReadInt(1)
+            met_list = []
+            for i in range(lenPaymentMethod):
+                met_list.append(self.payment_methods[self.payloadReaderReadInt(1)])
+
+            lenEnergyTransferMode = self.payloadReaderReadInt(1)
+            met_list = []
+            for i in range(lenEnergyTransferMode):
+                met_list.append(self.energy_transfer_modes[self.payloadReaderReadInt(1)])
+
+            #TODO: wrong battery capacity
+            battery_capacity = self.payloadReaderReadExponential()
+            #TODO: payload to short
+            #ret["departure_time"] = self.payloadReaderReadInt(4)
+
+            ret["payment_method"] = met_list
+            ret["protocol"] = prot_list
+            ret["energy_transfer_mode"] = met_list
+            ret["battery_capacity"] = battery_capacity
+
         self.payloadReaderFinalize()
         return ret
 
@@ -673,7 +735,7 @@ class Whitebeet():
 
             payload += parameter["full_soc"].to_bytes(1, "big")
             payload += parameter["bulk_soc"].to_bytes(1, "big")
-            
+
             payload += self._valueToExponential(parameter["energy_request"])
 
             payload += parameter["departure_time"].to_bytes(4, "big")
@@ -860,13 +922,12 @@ class Whitebeet():
                 payload += int(schedule['interval'][i]).to_bytes(4, "big")
                 payload += int(schedule['power'][i]).to_bytes(2, "big")
                 payload += b"\x00"
-        print(schedule)
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_set_charging_profile, payload)
 
     def v2gStartSession(self):
         """
         Starts a new charging session
-        """        
+        """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_start_session, None)
 
     def v2gStartCableCheck(self):
@@ -904,7 +965,7 @@ class Whitebeet():
         When Charging in AC mode the session is stopped auotamically because no post charging needs to be performed.
         """
         self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_stop_session, None)
-    
+
     def v2gEvParseSessionStarted(self, data):
         """
         Parse a session started message.
@@ -924,7 +985,7 @@ class Whitebeet():
         message['energy_transfer_mode'] = self.payloadReaderReadInt(1)
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseDCChargeParametersChanged(self, data):
         """
         Parse a DC charge parameters changed message.
@@ -962,7 +1023,7 @@ class Whitebeet():
             message['evse_energy_to_be_delivered'] = self.payloadReaderReadExponential()
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseACChargeParametersChanged(self, data):
         """
         Parse a AC charge parameters changed message.
@@ -971,14 +1032,14 @@ class Whitebeet():
         max_current             int or float
         rcd                     boolean
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         message['nominal_voltage'] = self.payloadReaderReadExponential()
         message['max_current'] = self.payloadReaderReadExponential()
         message['rcd'] = True if self.payloadReaderReadInt(1) == 1 else False
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseScheduleReceived(self, data):
         """
         Parse a schedule received message.
@@ -994,7 +1055,7 @@ class Whitebeet():
         interval            int
         power               int or float
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         message['tuple_count'] = self.payloadReaderReadInt(1)
         message['tuple_id'] = self.payloadReaderReadInt(2)
@@ -1008,79 +1069,79 @@ class Whitebeet():
         self.payloadReaderFinalize()
 
         return message
-    
+
     def v2gEvParseCableCheckReady(self, data):
         """
         Parse a cable check ready message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseCableCheckFinished(self, data):
         """
         Parse a cable check finished message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParsePreChargingReady(self, data):
         """
         Parse a pre charging ready message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseChargingReady(self, data):
         """
         Parse a charging ready message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseChargingStarted(self, data):
         """
         Parse a charging started message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseChargingStopped(self, data):
         """
         Parse a charging stopped message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParsePostChargingReady(self, data):
         """
         Parse a post charging method ready message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseSessionStopped(self, data):
         """
         Parse a session stopped message.
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseNotificationReceived(self, data):
         """
         Parse a notification received message.
@@ -1088,20 +1149,20 @@ class Whitebeet():
         keys type   int
         max_delay   int
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         message['type'] = self.payloadReaderReadInt(1)
         message['max_delay'] = self.payloadReaderReadInt(2)
         self.payloadReaderFinalize()
         return message
-    
+
     def v2gEvParseSessionError(self, data):
         """
         Parse a session error message.
         Will return a dictionary with the following keys:
         keys code    int
         """
-        message = {}        
+        message = {}
         self.payloadReaderInitialize(data, len(data))
         message['code'] = self.payloadReaderReadInt(1)
         self.payloadReaderFinalize()
@@ -1113,13 +1174,13 @@ class Whitebeet():
         """
         Sets the configuration
         """
-        if not ({"evse_id_DIN", "evse_id_ISO", "protocol", "payment_method", "payment_method", "certificate_installation_support", "certificate_update_support", "energy_transfer_mode"} <= set(configuration)):
+        if not ({"id_din", "id_iso", "protocol", "payment_method", "payment_method", "certificate_installation_support", "certificate_update_support", "energy_transfer_mode"} <= set(configuration)):
             raise ValueError("Missing keys in config dict")
 
-        if not ('evse_id_DIN' in configuration or isinstance(configuration['evse_id_DIN'],str) or len(configuration['evse_id_DIN']) <= 32):
-            raise ValueError("evse_id_DIN needs to be of type str with maximum length 32")
-        elif not ('evse_id_ISO' in configuration or isinstance(configuration['evse_id_ISO'],str) or len(configuration['evse_id_ISO']) <= 38):
-            raise ValueError("evse_id_ISO needs to be of type str with maximum length 38")
+        if not ('id_din' in configuration or isinstance(configuration['id_din'],str) or len(configuration['id_din']) <= 32):
+            raise ValueError("id_din needs to be of type str with maximum length 32")
+        elif not ('id_din' in configuration or isinstance(configuration['id_din'],str) or len(configuration['id_din']) <= 38):
+            raise ValueError("id_din needs to be of type str with maximum length 38")
         elif not ('protocol' in configuration  or isinstance(configuration['protocol'],list) or len(configuration['protocol']) in [1,2]):
             raise ValueError("protocol needs to be of type list with length between 1 and 2")
         elif not ('payment_method' in configuration or isinstance(configuration['payment_method'],list) or len(configuration['payment_method']) in [1,2]):
@@ -1131,25 +1192,43 @@ class Whitebeet():
         elif 'certificate_update_support' in configuration and not isinstance(configuration['certificate_update_support'], bool):
             raise ValueError("certificate_update_support needs to be of type bool")
         else:
-            
+
             payload = b''
-            
-            payload += len(configuration['evse_id_DIN']).to_bytes(1, 'big')
-            payload += bytes(configuration['evse_id_DIN'], "utf-8")
-            payload += len(configuration['evse_id_ISO']).to_bytes(1, 'big')
-            payload += bytes(configuration['evse_id_ISO'], "utf-8")
+
+            payload += len(configuration['id_din']).to_bytes(1, 'big')
+            payload += bytes(configuration['id_din'], "utf-8")
+            payload += len(configuration['id_din']).to_bytes(1, 'big')
+            payload += bytes(configuration['id_din'], "utf-8")
 
             payload += len(configuration['protocol']).to_bytes(1, 'big')
             for val in configuration['protocol']:
-                payload += val.to_bytes(1, "big")
+                if val in 'din':
+                    payload += b'\0x00'
+                elif val in 'iso':
+                    payload += b'\0x01'
 
             payload += len(configuration['payment_method']).to_bytes(1, 'big')
             for val in configuration['payment_method']:
-                payload += val.to_bytes(1, "big")
+                if val in 'eim':
+                    payload += b'\0x00'
+                elif val in 'pnc':
+                    payload += b'\0x01'
 
             payload += len(configuration['energy_transfer_mode']).to_bytes(1, 'big')
             for val in configuration['energy_transfer_mode']:
                 payload += val.to_bytes(1, "big")
+                if val in 'dc_core':
+                    payload += b'\0x00'
+                elif val in 'dc_extended':
+                    payload += b'\0x01'
+                elif val in 'dc_combo_core':
+                    payload += b'\0x02'
+                elif val in 'dc_unique':
+                    payload += b'\0x03'
+                elif val in 'ac_single_phase':
+                    payload += b'\0x04'
+                elif val in 'ac_three_phase':
+                    payload += b'\0x05'
 
             if 'certificate_installation_support' in configuration:
                 payload += b'\x01' if configuration['certificate_installation_support'] == True else b'\x00'
@@ -1167,20 +1246,20 @@ class Whitebeet():
         """
         Sets the configuration
         """
-        
+
         ret = {}
         response = self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_get_configuration, None)
         self.payloadReaderInitialize(response.payload, response.payload_len)
-        
+
         code = self.payloadReaderReadBytes(1)
         ret['code'] = code
-        ret['evse_id_din'] = None
-        ret['evse_id_iso'] = None
-        ret['evse_protocols'] = None
-        ret['evse_payment_method'] = None
-        ret['evse_certification_installation_support'] = None
-        ret['evse_certification_update_support'] = None
-        ret['evse_energy_transfer_mode'] = None
+        ret['id_din'] = None
+        ret['id_iso'] = None
+        ret['protocol'] = None
+        ret['payment_method'] = None
+        ret['certification_installation_support'] = None
+        ret['certification_update_support'] = None
+        ret['energy_transfer_mode'] = None
 
         if code == b'\x00':
             lenEvseIdDin = self.payloadReaderReadBytes(1)
@@ -1189,8 +1268,8 @@ class Whitebeet():
             lenEvseIdIso = self.payloadReaderReadBytes(1)
             evseIdIso = self.payloadReaderReadBytes(lenEvseIdDin)
 
-            lenProtocols = self.payloadReaderReadBytes(1)
-            protocols = self.payloadReaderReadBytes(lenProtocols)
+            lenProtocol = self.payloadReaderReadBytes(1)
+            protocol = self.payloadReaderReadBytes(lenProtocol)
 
             lenPaymentMethod = self.payloadReaderReadBytes(1)
             paymentMethod = self.payloadReaderReadBytes(lenPaymentMethod)
@@ -1198,25 +1277,26 @@ class Whitebeet():
             if 1 in paymentMethod:
                 certificateInstallationSupported = True if self.payloadReaderReadBytes(1) == b'\x00' else False
                 certificateUpdateSupported = True if self.payloadReaderReadBytes(1) == b'\x00' else False
-            
+
             lenEnergyTransferMode = self.payloadReaderReadBytes(1)
             energyTransferMode = self.payloadReaderReadBytes(lenEnergyTransferMode)
 
-            ret['evse_id_din'] = evseIdDin.decode('utf-8')
-            ret['evse_id_iso'] = evseIdIso.decode('utf-8')
-            ret['evse_protocols'] = protocols
-            ret['evse_payment_method'] = paymentMethod
-            ret['evse_certification_installation_support'] = certificateInstallationSupported
-            ret['evse_certification_update_support'] = certificateUpdateSupported
-            ret['evse_energy_transfer_mode'] = energyTransferMode
+            ret['id_din'] = evseIdDin.decode('utf-8')
+            ret['id_iso'] = evseIdIso.decode('utf-8')
+            ret['protocol'] = protocol
+            ret['payment_method'] = paymentMethod
+            ret['certification_installation_support'] = certificateInstallationSupported
+            ret['certification_update_support'] = certificateUpdateSupported
+            ret['energy_transfer_mode'] = energyTransferMode
 
+        self.payloadReaderFinalize()
         return ret
 
     def v2gEvseSetDcChargingParameters(self, parameters):
         """
         Set DC Charging Parameter
         """
-        
+
         if not ('isolation_level' in parameters or isinstance(parameters['isolation_level'],int) or parameters['isolation_level'] in range(4)):
             raise ValueError("isolation_level needs to be of type int with range 4")
         elif not ('min_voltage' in parameters or isinstance(parameters['min_voltage'],(int, tuple))):
@@ -1249,7 +1329,7 @@ class Whitebeet():
                 payload += self._valueToExponential(parameters['current_regulation_tolerance'])
             else:
                 payload += b'\x00'
-            
+
             payload += self._valueToExponential(parameters['peak_current_ripple'])
             payload += parameters['status'].to_bytes(1, "big")
 
@@ -1279,7 +1359,7 @@ class Whitebeet():
                 payload += parameters['isolation_level'].to_bytes(1, "big")
                 payload += self._valueToExponential(parameters['present_voltage'])
                 payload += self._valueToExponential(parameters['present_current'])
-                
+
                 if 'max_voltage' in parameters:
                     payload += b'\x01'
                     payload += self._valueToExponential(parameters['max_voltage'])
@@ -1297,7 +1377,7 @@ class Whitebeet():
                     payload += self._valueToExponential(parameters['max_power'])
                 else:
                     payload += b'\x00'
-                
+
                 payload += parameters['status'].to_bytes(1, "big")
 
                 self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_update_dc_charging_parameters, payload)
@@ -1311,7 +1391,7 @@ class Whitebeet():
         self.payloadReaderInitialize(response.payload, response.payload_len)
         code = self.payloadReaderReadInt(1)
         ret['code'] = code
-        
+
         if code > b'\x00':
 
             isolationLevel = self.payloadReaderReadInt(1)
@@ -1325,9 +1405,9 @@ class Whitebeet():
             currentRegulationTolerancePresent = self.payloadReaderReadInt(1)
             if currentRegulationTolerancePresent == 1:
                 currentRegulationTolerance = self.payloadReaderReadExponential()
-            
+
             peakCurrentRipple = self.payloadReaderReadExponential()
-            
+
             lenPresentVoltage = self.payloadReaderReadInt(1)
             if lenPresentVoltage == 1:
                 presentVoltage = self.payloadReaderReadExponential()
@@ -1344,7 +1424,7 @@ class Whitebeet():
             ret['max_voltage'] = maxVoltage
             ret['max_current'] = maxCurrent
             ret['max_power'] = maxPower
-            
+
             if currentRegulationTolerancePresent == 1:
                 ret['current_regulation_tolerance'] = currentRegulationTolerance
 
@@ -1357,13 +1437,13 @@ class Whitebeet():
 
             ret['status'] = status
 
-        return ret   
+        return ret
 
     def v2gEvseSetAcChargingParameters(self, parameters):
         """
         Set AC Charging Parameter
         """
-        
+
         if not ('rcd_status' in parameters or isinstance(parameters['rcd_status'], bool)):
             raise ValueError("rcd_status needs to be of type bool")
         elif not ('nominal_voltage' in parameters or isinstance(parameters['nominal_voltage'],(int, tuple))):
@@ -1382,7 +1462,7 @@ class Whitebeet():
         """
         Set DC Charging Parameter
         """
-        
+
         if not ('rcd_status' in parameters or isinstance(parameters['rcd_status'], bool)):
             raise ValueError("rcd_status needs to be of type bool")
         elif not isinstance(parameters['max_current'],(int, tuple)) if 'max_current' in parameters else False:
@@ -1408,7 +1488,7 @@ class Whitebeet():
         self.payloadReaderInitialize(response.payload, response.payload_len)
         code = self.payloadReaderReadInt(1)
         ret['code'] = code
-        
+
         if code > b'\x00':
 
             rcdStatus = self.payloadReaderReadInt(1)
@@ -1420,7 +1500,7 @@ class Whitebeet():
             ret['nominal_voltage'] = nominalVoltage
             ret['max_current'] = maxCurrent
 
-        return ret 
+        return ret
 
     def v2gEvseSetSdpConfig(self, sdp_config):
         """
@@ -1462,7 +1542,7 @@ class Whitebeet():
         self.payloadReaderInitialize(response.payload, response.payload_len)
         code = self.payloadReaderReadInt(1)
         ret['code'] = code
-        
+
         if code > b'\x00':
 
             allowUnsecure = self.payloadReaderReadInt(1)
@@ -1583,7 +1663,7 @@ class Whitebeet():
                                 payload += entry['time_interval_start'].to_bytes(4, 'big')
                                 payload += entry['time_interval_duration'].to_bytes(4, 'big')
                                 payload += entry['price_level'].to_bytes(1, 'big')
-                                
+
                                 payload += len(entry['consumption_costs']).to_bytes(1, 'big')
                                 for consumption in entry['consumption_costs']:
                                     if not ('start_value' in consumption or isinstance(consumption['start_value'], (int, tuple))):
@@ -1591,9 +1671,9 @@ class Whitebeet():
                                     elif not ('costs' in consumption or isinstance(consumption['costs'], list) or (1 <= len(consumption['costs']) <= 3)):
                                         raise ValueError('costs needs to be of type list with length between 1 and 3')
                                     else:
-                                
+
                                         payload += self._valueToExponential(consumption['start_value'])
-                                        
+
                                         payload += len(consumption['costs']).to_bytes(1, 'big')
                                         for cost in consumption['costs']:
                                             if not ('kind' in cost or isinstance(cost['kind'], int) or cost['kind'] in [0,1,2]):
@@ -1603,14 +1683,14 @@ class Whitebeet():
                                             elif not ('amount_multiplier' in cost or isinstance(cost['amount_multiplier'], int) or cost['amount_multiplier'] in range(-3, 4)):
                                                 raise ValueError('amount_multiplier needs to be of type int with range -3 to 3')
                                             else:
-                                                
+
                                                 payload += cost['kind'].to_bytes(1, 'big')
                                                 payload += cost['amount'].to_bytes(4, 'big')
                                                 payload += cost['amount_multiplier'].to_bytes(1, 'big')
 
                         payload += len(sales_tariff['signature_id']).to_bytes(1, 'big')
                         payload += sales_tariff['signature_id'].encode('utf-8')
-                        
+
                         payload += len(sales_tariff['digest_value']).to_bytes(1, 'big')
                         for val in sales_tariff['digest_value']:
                             payload += val.to_bytes(1, 'big')
@@ -1665,7 +1745,7 @@ class Whitebeet():
         else:
             payload = b''
             payload += receipt['meter_id'].encode('utf-8')
-            
+
             if 'meter_reading' in receipt:
                 payload += b'\x01'
                 payload += receipt['meter_reading'].to_bytes(8, 'big')
@@ -1678,7 +1758,7 @@ class Whitebeet():
                     payload += val.to_bytes(1, 'big')
             else:
                 payload += b'\x00'
-            
+
             if 'meter_status' in receipt:
                 payload += len(receipt['meter_status'])
                 for val in receipt['meter_status']:
@@ -1716,6 +1796,7 @@ class Whitebeet():
         message['protocol'] = self.payloadReaderReadInt(1)
         message['session_id'] = self.payloadReaderReadBytes(8)
         message['evcc_id'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
+
         self.payloadReaderFinalize()
         return message
 
@@ -1732,11 +1813,15 @@ class Whitebeet():
         message = {}
         self.payloadReaderInitialize(data, len(data))
         message['selected_payment_method'] = self.payloadReaderReadInt(1)
+
         if message['selected_payment_method'] == 1:
             message['contract_certificate'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
             message['mo_sub_ca1'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
             message['mo_sub_ca2'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1))
             message['emaid'] = self.payloadReaderReadBytes(self.payloadReaderReadInt(1)).decode('utf-8')
+
+        self.payloadBytesRead = self.payloadBytesLen
+
         self.payloadReaderFinalize()
         return message
 
@@ -1819,7 +1904,7 @@ class Whitebeet():
         if self.payloadReaderReadInt(1) == 1:
             message['full_soc'] = self.payloadReaderReadInt(1)
 
-        if self.payloadReaderReadInt(1) == 1:   
+        if self.payloadReaderReadInt(1) == 1:
             message['bulk_soc'] = self.payloadReaderReadInt(1)
 
         message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
@@ -1873,13 +1958,13 @@ class Whitebeet():
         message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
         message['error_code'] = self.payloadReaderReadInt(1)
         message['soc'] = self.payloadReaderReadInt(1)
-        
+
         message['target_voltage'] = self.payloadReaderReadExponential()
         message['target_current'] = self.payloadReaderReadExponential()
-        
+
         if self.payloadReaderReadInt(1) == 1:
             message['full_soc'] = self.payloadReaderReadInt(1)
-        
+
         if self.payloadReaderReadInt(1) == 1:
             message['bulk_soc'] = self.payloadReaderReadInt(1)
 
@@ -1887,7 +1972,7 @@ class Whitebeet():
 
         if self.payloadReaderReadInt(1) == 1:
             message['bulk_charging_complete'] = True if self.payloadReaderReadInt(1) == 1 else False
-        
+
         if self.payloadReaderReadInt(1) == 1:
             message['remaining_time_to_full_soc'] = self.payloadReaderReadExponential()
 
@@ -1908,7 +1993,7 @@ class Whitebeet():
         """
         message = {}
         self.payloadReaderInitialize(data, len(data))
-        
+
         message['max_voltage'] = self.payloadReaderReadExponential()
         message['min_current'] = self.payloadReaderReadExponential()
         message['max_current'] = self.payloadReaderReadExponential()
@@ -1942,7 +2027,7 @@ class Whitebeet():
         timeout             int
         schedule_tuple_id   int
         charging_profiles   list
-        
+
         The dict entries fo the list charging_profiles have the following entries:
         start        int
         power        int or float
@@ -2125,3 +2210,279 @@ class Whitebeet():
         sub_id_list.append(0xCD)
         response = self._receive(self.v2g_mod_id, sub_id_list, [0x00, 0xFF], 1)
         return response.sub_id, response.payload
+
+
+    def openOwnCert(self):
+        """
+        open the own cert store.
+        """
+        path = "fs/cert/v2g/own/shared"
+        data = struct.pack('!H', len(path))
+        data += path.encode()
+        response = self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_open, data)
+
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_open, response.payload[0]))
+        else:
+            print("Own Cert Path opend")
+
+        handle = response.payload[1]
+        log("Handle of {} is {}".format(path, handle))
+
+        log("Wait for synchronisation")
+        response = self.framing.receive_next_frame(filter_mod=self.cm_own_mod_id, filter_sub=self.cm_own_index_synchronized, timeout=30)
+        if response is not None and response.payload[0] != handle:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.self.cm_own_index_synchronized, response.payload[0]))
+
+    def addOwnCert(self, cert_path):
+        """
+        adding the cert chain
+        """
+        if(not isinstance(cert_path, str)):
+            log("Error: certPath has to be of type str")
+            exit(1)
+
+        path = "fs/cert/v2g/own/shared"
+        data = struct.pack('!H', len(path))
+        data += path.encode()
+        response = self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_open, data)
+
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_open, response.payload[0]))
+        else:
+            log("Own Cert Path 'fs/cert/v2g/own/shared' opend")
+
+        handle = response.payload[1]
+        log("   Handle of {} is {}".format(path, handle))
+
+        log("Wait for synchronisation")
+        response = self.framing.receive_next_frame(filter_mod=self.cm_own_mod_id, filter_sub=self.cm_own_index_synchronized, timeout=30)
+        if response is not None and response.payload[0] != handle:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.self.cm_own_index_synchronized, response.payload[0]))
+
+        log("   Whitebeet Certificate Manager synchronisation done")
+
+        # list of certs
+        data = struct.pack('!B', 0)
+        chain = [
+            {"cert": "{}/3.crt".format(cert_path)}, # root
+            {"cert": "{}/2.crt".format(cert_path)},
+            {"cert": "{}/1.crt".format(cert_path)},
+            {
+                "cert": "{}/0.crt".format(cert_path), # secc cert
+                "key": "{}/0.key".format(cert_path)   # secc key
+            }
+        ]
+
+
+        for entry in chain:
+            try:
+                with open(entry["cert"], 'rb') as f:
+                    log("   Opened: {}".format(entry["cert"]))
+                    cert_data = f.read()
+                    data = struct.pack('!B', handle)
+                    data += struct.pack('!H', len(cert_data))
+                    data += cert_data
+            except:
+                raise AssertionError("Failed to open: {}".format(entry["cert"]))
+
+            response =  self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_add_certificate, data)
+            if response is not None and response.payload[0] != 0:
+                raise AssertionError("Error Response Code: 0x{0:02x} ({1:x})".format(response.payload[0], response.payload[0]))
+            else:
+                log("   certificate injected")
+
+            handle_entry = response.payload[1]
+            if "key" in entry:
+                try:
+                    with open(entry["key"], 'rb') as f:
+                        log("   Opened: {}".format(entry["key"]))
+                        key_data = f.read()
+                        data = struct.pack('!B', handle)
+                        data += struct.pack('!B', handle_entry)
+                        data += struct.pack('!H', len(key_data))
+                        data += key_data
+                except:
+                    raise AssertionError("Failed to open: {}".format(entry["key"]))
+
+                response =  self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_add_private_key, data)
+                if response is not None and response.payload[0] != 0:
+                    raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_add_private_key, response.payload[0]))
+                else:
+                    log("   Key injected")
+
+
+    def add_mo_root_cert(self, cert_path):
+
+        if(not isinstance(cert_path, str)):
+            log("Error: certPath has to be of type str")
+            exit(1)
+
+        path = "fs/cert/v2g/trusted/mo"
+        data = struct.pack('!H', len(path))
+        data += path.encode()
+        response = self._sendReceive(self.cm_trust_mod_id, self.cm_trust_sub_open, data)
+
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_sub_open, response.payload[0]))
+        else:
+            log("   MO CA Path 'fs/cert/v2g/trusted/mo' opend")
+
+        handle = response.payload[1]
+        log("   Handle of {} is {}".format(path, handle))
+
+        log("   Wait for synchronisation")
+        response = self.framing.receive_next_frame(self.cm_trust_mod_id, self.cm_trust_index_synchronized, timeout=30)
+        if response is not None and response.payload[0] != handle:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_index_synchronized, response.payload[0]))
+
+        log("   Whitebeet Certificate Manager synchronisation done")
+
+        chain = ["{}/moca.crt".format(cert_path)]
+
+        for entry in chain:
+            try:
+                with open(entry, 'rb') as f:
+                    log("   Opened: {}".format(entry))
+                    cert_data = f.read()
+                    data = struct.pack('!B', handle)
+                    data += struct.pack('!H', len(cert_data))
+                    data += cert_data
+            except:
+                raise AssertionError("Failed to open: {}".format(entry["cert"]))
+
+            response = self._sendReceive(self.cm_trust_mod_id, self.cm_trust_sub_add_certificate, data)
+            if response is not None and response.payload[0] != 0:
+                raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_sub_add_certificate, response.payload[0]))
+            else:
+                log("   CA injected")
+
+    def removeAllMoRootCerts(self):
+        log("   Remove mobility operator root CA")
+
+        path = "fs/cert/v2g/trusted/mo"
+        data = struct.pack('!H', len(path))
+        data += path.encode()
+        response = self._sendReceive(self.cm_trust_mod_id, self.cm_trust_sub_open, data)
+
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_mod_id, 0x40, response.payload[0]))
+        else:
+            log("   MO CA Path 'fs/cert/v2g/trusted/mo' opend")
+
+        handle = response.payload[1]
+        log("   Handle of {} is {}".format(path, handle))
+
+        log("   Wait for synchronisation")
+        response = self.framing.receive_next_frame(self.cm_trust_mod_id, self.cm_trust_index_synchronized, timeout=30)
+        if response is not None and response.payload[0] != handle:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_index_synchronized, response.payload[0]))
+
+        log("   Whitebeet Certificate Manager synchronisation done")
+
+        next_entry = 0xFF
+
+        while (True):
+            log("   Get next certificate entry")
+            data = struct.pack('!B', handle)
+            data += struct.pack('!B', next_entry)
+
+            response = self._sendReceive(self.cm_trust_mod_id, self.cm_trust_sub_get_next_entry, data)
+            if response is not None and response.payload[0] != 0:
+                raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_sub_get_next_entry, response.payload[0]))
+
+            next_entry = response.payload[1]
+
+            if next_entry == 0xFF:
+                log("   Finsihed mobility operator root CA")
+                break
+            else:
+                log("   Remove certificate entry {}".format(next_entry))
+                data = struct.pack('!B', handle)
+                data += struct.pack('!B', next_entry)
+                response = self._sendReceive(self.cm_trust_mod_id, self.cm_trust_sub_remove_certificate, data)
+                if response is not None and response.payload[0] != 0:
+                    raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_trust_mod_id, self.cm_trust_sub_remove_certificate, response.payload[0]))
+
+
+    def removeAllChainCerts(self):
+        path = "fs/cert/v2g/own/shared"
+        data = struct.pack('!H', len(path))
+        data += path.encode()
+        response = self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_open, data)
+
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_open, response.payload[0]))
+        else:
+            log("Own Cert Path 'fs/cert/v2g/own/shared' opend")
+
+        handle = response.payload[1]
+        log("   Handle of {} is {}".format(path, handle))
+
+        log("   Wait for synchronisation")
+        response = self.framing.receive_next_frame(self.cm_own_mod_id, self.cm_own_index_synchronized, timeout=30)
+        if response is not None and response.payload[0] != handle:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_index_synchronized, response.payload[0]))
+
+        log("   Whitebeet Certificate Manager synchronisation done")
+
+        next_entry = 0xFF
+
+        while (True):
+            log("   Get next certificate entry")
+            data = struct.pack('!B', handle)
+            data += struct.pack('!B', next_entry)
+
+            response = self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_get_next_entry, data)
+            if response is not None and response.payload[0] != 0:
+                raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_get_next_entry, response.payload[0]))
+
+            next_entry = response.payload[1]
+
+            if next_entry == 0xFF:
+                log("   Finsihed deleting all certificates")
+                break
+            else:
+                log("   Remove certificate entry {}".format(next_entry))
+                data = struct.pack('!B', handle)
+                data += struct.pack('!B', next_entry)
+                response = self._sendReceive(self.cm_own_mod_id, self.cm_own_sub_remove_certificate, data)
+                if response is not None and response.payload[0] != 0:
+                    raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_own_mod_id, self.cm_own_sub_remove_certificate, response.payload[0]))
+
+
+    def setTime(self):
+
+        """
+        Try to update the time on the module
+        """
+        now = datetime.datetime.now()
+
+        data = struct.pack('!B', 0)
+        data += struct.pack('!H', now.year)
+        data += struct.pack('!B', now.month)
+        data += struct.pack('!B', now.day)
+        data += struct.pack('!B', now.hour)
+        data += struct.pack('!B', now.minute)
+        data += struct.pack('!B', now.second)
+
+        timestamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        print(f"Set time on the target to {timestamp}")
+
+        response = self._sendReceive(0x12, 0x40, data)
+        if response.payload_len == 0:
+            raise Warning("Module did not accept command with no return code")
+        elif response.payload[0] != 0:
+            raise Warning("Module did not accept command {:x}:{:x}, return code: {}".format(self.cm_mod_id, self.cm_sub_own_open, response.payload[0]))
+        else:
+            print("time successfully set")

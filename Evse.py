@@ -9,8 +9,18 @@ class Evse():
         print(f"WHITE-beet-EI firmware version: {self.whitebeet.version}")
         self.charger = Charger()
         self.schedule = None
-        self.evse_config = None
+        
+        self.config = {}
+        self.config["id_din"] = '+49*123*456*789'
+        self.config["id_iso"] = 'DE*A23*E45B*78C'
+        self.config["protocol"] = [0, 1]
+        self.config["payment_method"] = [0]
+        self.config["energy_transfer_mode"] = [0, 1, 2, 3]
+        self.config["certificate_installation_support"] = False
+        self.config["certificate_update_support"] = False
+        
         self.charging = False
+        self.certs_folder = "."
 
     def __enter__(self):
         return self
@@ -22,6 +32,39 @@ class Evse():
     def __del__(self):
         if hasattr(self, "whitebeet"):
             del self.whitebeet
+
+    def load(self, configDict):
+        #TODO: change to more generic way
+        if "charger" in configDict:
+            for key in configDict["charger"]:
+                try:
+                    setattr(self.charger, key, configDict["charger"][key])
+                except:
+                    print(key + " not in Charger config")
+                    continue
+
+        if "schedule" in configDict:
+            try:
+                self.setSchedule(configDict["schedule"])
+            except:
+                print("Error in reading schedule")
+
+        if "certs_folder" in configDict:
+            try:
+                self.certs_folder = (configDict["certs_folder"])
+            except:
+                print("Error in reading certs_folder")
+        else:
+            self.certs_folder = "."
+
+        if "configuration" in configDict:
+            for key in configDict["configuration"]:
+                try:
+                    self.config[key] = configDict["configuration"][key]
+                except:
+                    print(key + " not in EVSE configuration")
+                    continue
+        
 
     def _initialize(self):
         """
@@ -98,17 +141,7 @@ class Evse():
         """
         print("Set V2G mode to EVSE")
         self.whitebeet.v2gSetMode(1)
-
-        self.evse_config = {
-            "evse_id_DIN": '+49*123*456*789',
-            "evse_id_ISO": 'DE*A23*E45B*78C',
-            "protocol": [0, 1], 
-            "payment_method": [0],
-            "energy_transfer_mode": [0, 1, 2, 3],
-            "certificate_installation_support": False,
-            "certificate_update_support": False,
-        }
-        self.whitebeet.v2gEvseSetConfiguration(self.evse_config)
+        self.whitebeet.v2gEvseSetConfiguration(self.config)
 
         self.dc_charging_parameters = {
             'isolation_level': 0,
@@ -293,7 +326,7 @@ class Evse():
 
         if 'selected_energy_transfer_mode' in message:
             print('Selected energy transfer mode: {}'.format(message['selected_energy_transfer_mode']))
-            if not message['selected_energy_transfer_mode'] in self.evse_config['energy_transfer_mode']:
+            if not message['selected_energy_transfer_mode'] in self.config['energy_transfer_mode']:
                 print('Energy transfer mode mismatch!')
                 try:
                     self.whitebeet.v2gEvseStopCharging()
@@ -632,3 +665,57 @@ class Evse():
             return self._handleEvConnected()
         else:
             return False
+
+    def injectCertificates(self):
+        print("")
+        print("")
+        print("################### INFO #####################")
+        print("Looking for certificates at:")
+        print(" {}/3.crt (V2GRootCA)".format(self.certs_folder))
+        print(" {}/2.crt (CPOSubCA1)".format(self.certs_folder))
+        print(" {}/1.crt (CPOSubCA2)".format(self.certs_folder))
+        print(" {}/0.crt (SECCCert)".format(self.certs_folder))
+        print(" {}/0.key (SECC prviate unencrypted Key)".format(self.certs_folder))
+        print(" {}/moca.crt (Mobility Operator CA)".format(self.certs_folder))
+        print("##############################################")
+        print("")
+        print("")
+        time.sleep(4)
+
+        print("Injecting Certificates!")
+        
+        #print("EVSE  OPEN OWN PATH")
+        #evse.openOwn()
+        print("##########################")
+        print("DELETE ALL CERTS ON TARGET")
+        print("##########################")
+        self.deleteAllCerts()
+        
+        print("##########################")
+        print("EVSE: ADDING OWN CERT CHAIN")
+        print("##########################")
+        self.addOwn()    
+                        
+        time.sleep(2)
+        print("##########################")
+        print("EVSE: ADDING MO CA ROOT")
+        print("##########################")
+        self.addMoCARoot()
+
+        print("injecting done, please restart application!")
+
+    def openOwn(self):
+        self.whitebeet.openOwnCert()
+
+    def addOwn(self):
+        self.whitebeet.addOwnCert(self.certs_folder)
+
+    def setTime(self):
+        self.whitebeet.setTime()
+        
+    def addMoCARoot(self):
+        self.whitebeet.add_mo_root_cert(self.certs_folder)
+        
+    def deleteAllCerts(self):
+        self.whitebeet.removeAllChainCerts()
+        self.whitebeet.removeAllMoRootCerts()

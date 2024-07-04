@@ -1,0 +1,68 @@
+{
+    "mac": "00:01:01:63:77:33",
+    "interface": {
+        "type": "eth",
+        "name": "eth-wb1-evse"
+    },
+    "portmirror": true,
+    "evse": {
+        "configuration":
+        {
+            "id_din": "+49*123*456*789",
+            "id_iso": "DE*A23*E45B*78C",
+            "protocol": [
+                "din",
+                "iso"
+            ],
+            "payment_method": [
+                "eim",
+                "pnc"
+            ],
+            "energy_transfer_mode": [
+                "dc_core",
+                "dc_extended",
+                "dc_combo_core",
+                "dc_unique",
+                "ac_single_phase",
+                "ac_three_phase"
+            ]
+        },
+        "certificate_installation_support": false,
+        "certificate_update_support": false,
+        "certs_folder": ".",
+        "charger": {
+            "min_voltage": 0,
+            "min_current": 0,
+            "max_voltage": 400,
+            "max_current": 100,
+            "max_power": 25000,
+            "delta_u": 0.5,
+            "delta_i": 0.05
+        },
+        "schedule": {
+            "code": 0,
+            "schedule_tuples": [
+                {
+                    "schedule_tuple_id": 1,
+                    "schedules": [
+                        {
+                            "start": 0,
+                            "interval": 1800,
+                            "power": 25000
+                        },
+                        {
+                            "start": 1800,
+                            "interval": 1800,
+                            "power": 18750
+                        },
+                        {
+                            "start": 3600,
+                            "interval": 82800,
+                            "power": 12500
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

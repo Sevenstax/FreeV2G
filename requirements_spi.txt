@@ -1,0 +1,10 @@
+Package        Version
+-------------- -------
+Cython         0.29.33
+pip            20.3.4
+pkg-resources  0.0.0
+python-libpcap 0.4.1
+RPi.GPIO       0.7.1
+scapy          2.5.0
+setuptools     44.1.1
+spidev         3.6

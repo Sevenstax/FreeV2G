@@ -17,12 +17,9 @@ class Ev():
         self.scheduleStartTime = time.time()
 
         self.config = {}
-        self.config["evid"] = bytes.fromhex(mac.replace(":",""))
-        self.config["protocol_count"] = 2
-        self.config["protocols"] = [0, 1]
-        self.config["payment_method_count"] = 1
+        self.config["id"] = bytes.fromhex(mac.replace(":",""))
+        self.config["protocol"] = [0, 1]
         self.config["payment_method"] = [0]
-        self.config["energy_transfer_mode_count"] = 2
         self.config["energy_transfer_mode"] = [0, 4]
         self.config["battery_capacity"] = self.battery.getCapacity()
 
@@ -50,6 +47,10 @@ class Ev():
         if hasattr(self, "whitebeet"):
             del self.whitebeet
 
+    def printConfig(self):
+        print("EV configuration: " + str(config))
+        print(self.config)
+
     def load(self, configDict):
         #TODO: change to more generic way
         # First(!) parse battery config
@@ -66,15 +67,15 @@ class Ev():
                     print(key + " not in ev.battery")
                     continue
 
-        if "ev" in configDict:
-            for key in configDict["ev"]:
+        if "configuration" in configDict:
+            for key in configDict["configuration"]:
                 try:
-                    if key == "evid":
-                        self.config[key] = bytes.fromhex(configDict["ev"][key].replace(":",""))
+                    if key == "id":
+                        self.config[key] = bytes.fromhex(configDict["configuration"][key].replace(":",""))
                     else:
-                        self.config[key] = configDict["ev"][key]
+                        self.config[key] = configDict["configuration"][key]
                 except:
-                    print(key + " not in EV.config")
+                    print(key + " not in EV configuration")
                     continue
 
         self._updateChargingParameter()
@@ -528,13 +529,13 @@ class Ev():
             i += 1
 
         self.schedule = {}
-        self.schedule["schedule_tuple_id"] = 1
+        self.schedule["schedule_tuple_id"] = message['tuple_id']
         self.schedule["charging_profile_entries_count"] = message['entries_count']
         self.schedule["start"] = start
         self.schedule["interval"] = interval
         self.schedule["power"] = power
 
-        self.schedule = {'schedule_tuple_id': 1, 'charging_profile_entries_count': 3, 'start': [0, 1800, 3600], 'interval': [1800, 1800, 82800], 'power': [25000, 18750, 12500]}
+        #self.schedule = {'schedule_tuple_id': 1, 'charging_profile_entries_count': 3, 'start': [0, 1800, 3600], 'interval': [1800, 1800, 82800], 'power': [25000, 18750, 12500]}
 
         self.scheduleStartTime = time.time()
         self.currentSchedule = 0

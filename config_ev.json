@@ -1,0 +1,45 @@
+{
+    "mac": "00:01:01:63:77:31",
+    "interface": {
+        "type": "eth",
+        "name": "eth-wb1-ev"
+    },
+    "portmirror": true,
+    "ev": {
+        "configuration":
+        {
+            "id": "00:01:01:63:77:31",
+            "protocol": [
+                "din",
+                "iso"
+            ],
+            "payment_method": [
+                "eim"
+            ],
+            "energy_transfer_mode": [
+                "dc_core",
+                "dc_extended",
+                "dc_combo_core",
+                "dc_unique",
+                "ac_single_phase",
+                "ac_three_phase"
+            ]
+        },
+        "battery": {
+            "timestep": 10000,
+            "capacity": 50000,
+            "level": 49000,
+            "full_soc": 100,
+            "bulk_soc": 80,
+            "max_current": 100,
+            "max_power": 12000,
+            "max_voltage": 300,
+            "target_current": 40,
+            "target_voltage": 200,
+            "target_voltage_delta": 10,
+            "max_current_AC": 0,
+            "max_voltage_AC": 0,
+            "min_current_AC": 0
+        }
+    }
+}
