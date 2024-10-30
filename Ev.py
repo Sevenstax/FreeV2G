@@ -135,11 +135,11 @@ class Ev():
             self.ACchargingParams["min_voltage"] = 220
             self.ACchargingParams["min_current"] = 1
             self.ACchargingParams["min_power"] = self.ACchargingParams["min_voltage"] * self.ACchargingParams["min_current"]
-            self.ACchargingParams["energy_request"] = self.battery.getCapacity() * (100 - self.battery.getSOC()) // 100
-            self.ACchargingParams["departure_time"] = 1000000
-            self.ACchargingParams["max_voltage"] = self.battery.max_voltage
             self.ACchargingParams["max_current"] = self.battery.max_current
             self.ACchargingParams["max_power"] = self.battery.max_power
+            self.ACchargingParams["max_voltage"] = self.battery.max_voltage
+            self.ACchargingParams["energy_request"] = self.battery.getCapacity() * (100 - self.battery.getSOC()) // 100
+            self.ACchargingParams["departure_time"] = 1000000
 
     def _waitEvseConnected(self, timeout):
         """
@@ -255,30 +255,47 @@ class Ev():
 
             elif self.state == "chargingReady" and self.schedule is not None:
                 startCharging = True
-
+                
+                self.battery.setEnergyTransferMode(self.currentEnergyTransferMode)
                 print(str(self.battery))
 
-                # check max voltage
-                if self.battery.in_voltage > self.battery.max_voltage:
-                    startCharging = False
+
+                # DC    
+                if self.currentEnergyTransferMode in [0,1,2,3]:
+                
+                    # check max voltage
+                    if self.battery.in_voltage > self.battery.max_voltage:
+                        startCharging = False
+
+                    # check target voltage
+                    if (self.battery.in_voltage > self.battery.target_voltage + self.battery.target_voltage_delta) \
+                    or (self.battery.in_voltage < self.battery.target_voltage - self.battery.target_voltage_delta):
+                        startCharging = False
                     
-                # check target voltage
-                if (self.battery.in_voltage >= self.battery.target_voltage + self.battery.target_voltage_delta) \
-                or (self.battery.in_voltage <= self.battery.target_voltage - self.battery.target_voltage_delta):
-                    startCharging = False
+                    # check target current
+                    if self.battery.in_current > self.battery.max_current:
+                        startCharging = False
+                
+                # AC
+                elif self.currentEnergyTransferMode in [4,5]:
                     
-                # check target current
-                if self.battery.in_current >= self.battery.max_current:
-                    startCharging = False
+                    # check target voltage
+                    if self.battery.in_voltage > self.battery.max_voltage_AC:
+                        startCharging = False
                     
+                    # check target current
+                    if (self.battery.in_current > self.battery.max_current_AC) \
+                    or (self.battery.in_current < self.battery.min_current_AC):
+                        startCharging = False
+
                 # check power conditions
-                if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
+                if self.battery.max_power < self.battery.in_voltage * self.battery.in_current:
                     startCharging = False
 
                 #TODO: due to a possible bug in the whitebeet EV implementation this is commented out
-                '''# check energy transfer mode
-                if self.currentEnergyTransferMode in self.config['energy_transfer_mode']:
-                    startCharging = True'''
+                # check energy transfer mode
+                # if self.currentEnergyTransferMode in self.config['energy_transfer_mode']:
+                #     startCharging = True
                 if startCharging == True and self.battery.is_charging == False:
                     self.state = "waitChargingStarted"
                     try:
@@ -323,7 +340,10 @@ class Ev():
                     if self.battery.getSOC() < self.battery.full_soc:
                         self.DCchargingParams["soc"] = self.battery.getSOC()
                         try:                  
-                            self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
+                            if self.currentEnergyTransferMode in [0,1,2,3]:
+                                self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
+                            elif self.currentEnergyTransferMode in [0,1,2,3]:
+                                self.whitebeet.v2gUpdateDCChargingParameters(self.ACchargingParams)
                         except Warning as e:
                             print("Warning: {}".format(e))
                         except ConnectionError as e:
@@ -470,7 +490,7 @@ class Ev():
 
         # check target voltage
         self.battery.in_voltage = message['nominal_voltage']
-        if self.battery.in_voltage >= self.battery.max_voltage_AC:
+        if self.battery.in_voltage > self.battery.max_voltage_AC:
             print("Battert voltage out of range!")
             if self.battery.is_charging == True:
                 self.whitebeet.v2gStopCharging(False)
@@ -480,7 +500,7 @@ class Ev():
         # check target current
         self.currentAcMaxCurrent = message["max_current"]
         self.battery.in_current = self.schedule['power'][self.currentSchedule] / self.battery.in_voltage
-        if self.battery.in_current >= self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
+        if self.battery.in_current > self.battery.max_current_AC or self.battery.in_current <= self.battery.min_current_AC:
             print("Battery current out of range!")
             if self.battery.is_charging == True:
                 self.whitebeet.v2gStopCharging(False)
@@ -488,7 +508,7 @@ class Ev():
                 self.whitebeet.v2gStopSession()
 
         # check power conditions
-        if self.battery.max_power <= self.battery.in_voltage * self.battery.in_current:
+        if self.battery.max_power < self.battery.in_voltage * self.battery.in_current:
             print("Battery power out of range!")
             if self.battery.is_charging == True:
                 self.whitebeet.v2gStopCharging(False)

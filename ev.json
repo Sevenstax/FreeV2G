@@ -24,13 +24,13 @@
         "full_soc": 100,
         "bulk_soc": 80,
         "max_current": 100,
-        "max_power": 12000,
+        "max_power": 40000,
         "max_voltage": 300,
         "target_current": 40,
         "target_voltage": 200,
         "target_voltage_delta": 10,
-        "max_current_AC": 0,
-        "max_voltage_AC": 0,
+        "max_current_AC": 150,
+        "max_voltage_AC": 400,
         "min_current_AC": 0
     }
 }
