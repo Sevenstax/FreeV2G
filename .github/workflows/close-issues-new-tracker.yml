@@ -16,7 +16,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Thanks for reporting your issue! Unfortunately this issue tracker is no longer supported. Please use [our website](https://whitebeet.sevenstax.de/wiki/) from now on to report new issues. Thanks, and best regards!'
+              body: 'Thanks for reporting your issue! Unfortunately this issue tracker is no longer supported. Please use [our website](https://whitebeet.sevenstax.de/wiki/support/posting_issues/) from now on to report new issues. Thanks, and best regards!'
             });
             github.rest.issues.lock({
               issue_number: context.issue.number,
