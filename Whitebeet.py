@@ -790,7 +790,7 @@ class Whitebeet():
         """
         Updates the AC charging parameters of the EV
         """
-        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "energy_request", "departure_time", "max_voltage", "max_current", "max_power", "soc"} <= set(parameter)):
+        if not ({"min_current", "min_voltage", "min_power", "max_voltage", "max_current", "max_power"} <= set(parameter)):
             raise ValueError("Missing keys in parameter dict")
         elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
@@ -815,7 +815,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["max_current"])
             payload += self._valueToExponential(parameter["max_power"])
 
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_ac_charging_parameters, payload)
 
     def v2gACGetChargingParameters(self, data):
         """

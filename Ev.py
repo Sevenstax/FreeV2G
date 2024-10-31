@@ -342,8 +342,8 @@ class Ev():
                         try:                  
                             if self.currentEnergyTransferMode in [0,1,2,3]:
                                 self.whitebeet.v2gUpdateDCChargingParameters(self.DCchargingParams)
-                            elif self.currentEnergyTransferMode in [0,1,2,3]:
-                                self.whitebeet.v2gUpdateDCChargingParameters(self.ACchargingParams)
+                            elif self.currentEnergyTransferMode in [4,5]:
+                                self.whitebeet.v2gUpdateACChargingParameters(self.ACchargingParams)
                         except Warning as e:
                             print("Warning: {}".format(e))
                         except ConnectionError as e:
