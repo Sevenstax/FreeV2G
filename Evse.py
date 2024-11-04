@@ -104,7 +104,7 @@ class Evse():
             "evse_id_ISO": 'DE*A23*E45B*78C',
             "protocol": [0, 1], 
             "payment_method": [0],
-            "energy_transfer_mode": [0, 1, 2, 3],
+            "energy_transfer_mode": [0, 1, 2, 3, 4, 5],
             "certificate_installation_support": False,
             "certificate_update_support": False,
         }
@@ -279,7 +279,8 @@ class Evse():
             print('Maximum power: {}'.format(message['max_power']))
             self.charger.setEvMaxPower(message['max_power'])
 
-        print('Energy Capacity: {}'.format(message['energy_capacity']))
+        if 'energy_capacity' in message:
+            print('Energy Capacity: {}'.format(message['energy_capacity']))
 
         if 'full_soc' in message:
             print('Full SoC: {}'.format(message['full_soc']))
@@ -287,9 +288,14 @@ class Evse():
         if 'bulk_soc' in message:
             print('Bulk SoC: {}'.format(message['bulk_soc']))
 
-        print('Ready: {}'.format('yes' if message['ready'] else 'no'))
-        print('Error code: {}'.format(message['error_code']))
-        print('SoC: {}'.format(message['soc']))
+        if 'ready' in message:
+            print('Ready: {}'.format('yes' if message['ready'] else 'no'))
+
+        if 'error_code' in message:
+            print('Error code: {}'.format(message['error_code']))
+
+        if 'soc' in message:
+            print('SoC: {}'.format(message['soc']))
 
         if 'selected_energy_transfer_mode' in message:
             print('Selected energy transfer mode: {}'.format(message['selected_energy_transfer_mode']))

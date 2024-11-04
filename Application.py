@@ -72,12 +72,12 @@ if __name__ == "__main__":
                     'schedules':[
                         {
                             "start": 0,
-                            "interval": 1800,
+                            "interval": 0,   # will only be processed for the last entry
                             "power": evse.getCharger().getEvseMaxPower()
                         },
                         {
                             "start": 1800,
-                            "interval": 1800,
+                            "interval": 0,   # will only be processed for the last entry
                             "power": int(evse.getCharger().getEvseMaxPower() * 0.75)
                         },
                         {

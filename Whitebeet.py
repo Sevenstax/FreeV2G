@@ -790,7 +790,7 @@ class Whitebeet():
         """
         Updates the AC charging parameters of the EV
         """
-        if not ({"min_current", "min_voltage", "min_power", "min_voltage", "min_current", "min_power", "energy_request", "departure_time", "max_voltage", "max_current", "max_power", "soc"} <= set(parameter)):
+        if not ({"min_current", "min_voltage", "min_power", "max_voltage", "max_current", "max_power"} <= set(parameter)):
             raise ValueError("Missing keys in parameter dict")
         elif not isinstance(parameter["min_voltage"], int) and not (isinstance(parameter["min_voltage"], tuple) and len(parameter["min_voltage"]) == 2):
             raise ValueError("Parameter min_voltage needs to be of type int or tuple with length 2")
@@ -815,7 +815,7 @@ class Whitebeet():
             payload += self._valueToExponential(parameter["max_current"])
             payload += self._valueToExponential(parameter["max_power"])
 
-            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_dc_charging_parameters, payload)
+            self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_ev_update_ac_charging_parameters, payload)
 
     def v2gACGetChargingParameters(self, data):
         """
@@ -1373,8 +1373,8 @@ class Whitebeet():
         else:
             payload = b''
             payload += parameters['rcd_status'].to_bytes(1, "big")
-            payload += self._valueToExponential(parameters['nominal_voltage'])
             payload += self._valueToExponential(parameters['max_current'])
+            payload += self._valueToExponential(parameters['nominal_voltage'])
 
             self._sendReceiveAck(self.v2g_mod_id, self.v2g_sub_evse_set_ac_charging_parameters, payload)
 
@@ -1814,17 +1814,18 @@ class Whitebeet():
             message['max_power'] = self.payloadReaderReadExponential()
 
         message['selected_energy_transfer_mode'] = self.payloadReaderReadInt(1)
-        message['energy_capacity'] = self.payloadReaderReadExponential()
+        if message['selected_energy_transfer_mode'] in [0,1,2,3]:
+            message['energy_capacity'] = self.payloadReaderReadExponential()
 
-        if self.payloadReaderReadInt(1) == 1:
-            message['full_soc'] = self.payloadReaderReadInt(1)
+            if self.payloadReaderReadInt(1) == 1:
+                message['full_soc'] = self.payloadReaderReadInt(1)
 
-        if self.payloadReaderReadInt(1) == 1:   
-            message['bulk_soc'] = self.payloadReaderReadInt(1)
+            if self.payloadReaderReadInt(1) == 1:   
+                message['bulk_soc'] = self.payloadReaderReadInt(1)
 
-        message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
-        message['error_code'] = self.payloadReaderReadInt(1)
-        message['soc'] = self.payloadReaderReadInt(1)
+            message['ready'] = True if self.payloadReaderReadInt(1) == 1 else False
+            message['error_code'] = self.payloadReaderReadInt(1)
+            message['soc'] = self.payloadReaderReadInt(1)
 
         self.payloadReaderFinalize()
         return message

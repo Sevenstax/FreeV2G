@@ -25,6 +25,7 @@ class Battery():
         self.max_current_AC = 0
         self.max_voltage_AC = 0
         self.min_current_AC = 0
+        self.ernergy_transfer_mode = None 
 
         self.setLevel(self._level)
 
@@ -47,11 +48,19 @@ class Battery():
         ret += "\t._last_calc_time:\t" + str(self._last_calc_time) + "\n"
         ret += "\t.in_voltage:\t\t" + str(self.in_voltage) + "\n"
         ret += "\t.in_current:\t\t" + str(self.in_current) + "\n"
-        ret += "\t.max_voltage:\t\t" + str(self.max_voltage) + "\n"
-        ret += "\t.max_current:\t\t" + str(self.max_current) + "\n"
-        ret += "\t.max_power:\t\t" + str(self.max_power) + "\n"
-        ret += "\t.target_voltage:\t" + str(self.target_voltage) + "\n"
-        ret += "\t.target_current:\t" + str(self.target_current) + "\n"
+        if self.ernergy_transfer_mode in [0,1,2,3]:
+            ret += "\t.max_voltage:\t\t" + str(self.max_voltage) + "\n"
+            ret += "\t.max_current:\t\t" + str(self.max_current) + "\n"
+            ret += "\t.max_power:\t\t" + str(self.max_power) + "\n"
+            ret += "\t.target_voltage:\t" + str(self.target_voltage) + "\n"
+            ret += "\t.target_current:\t" + str(self.target_current) + "\n"
+        elif self.ernergy_transfer_mode in [4,5]:
+            ret += "\t.max_voltage_AC:\t" + str(self.max_voltage_AC) + "\n"
+            ret += "\t.max_current_AC:\t" + str(self.max_current_AC) + "\n"
+            ret += "\t.min_current_AC:\t" + str(self.min_current_AC) + "\n"
+        else:
+            ret = "Error: No Energy Transfer Mode selected!"
+            return ret
         ret += "\t._capacity:\t\t" + str(self._capacity) + "\n"
         ret += "\t.full_soc:\t\t" + str(self.full_soc) + "\n"
         ret += "\t._level:\t\t" + str(self._level) + "\n"
@@ -82,6 +91,9 @@ class Battery():
     def getSOC(self):
         self._soc = int((self._level / self._capacity) * 100)
         return self._soc
+    
+    def setEnergyTransferMode(self, mode):
+        self.ernergy_transfer_mode = mode
 
     def tickSimulation(self):
         ticked = False
