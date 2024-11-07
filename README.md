@@ -6,6 +6,18 @@
       888          888     888    .o 888    .o      `888'      .oP     .o `88.    .88'  
      o888o        d888b    `Y8bod8P' `Y8bod8P'       `8'       8888888888  `Y8bood8P'   
 
+## Announcement
+
+The support for FreeV2G / WHITE Beet has been moved to a different issue tracker. Please use the following website for any future requests:
+
+https://whitebeet.sevenstax.de/wiki/support/posting_issues/
+
+All open issues will be addressed, but please note that new issues will be closed automatically. This repository will be archived on November 30th. You can access the FreeV2G releases here:
+
+https://whitebeet.sevenstax.de/wiki/releases/
+
+Thank you for your contributions in the past!
+
 ## IMPORTANT INFORMATION
 
 **We are currently investigating issues with the firmware update file for EV firmware V01_00_06 and strongly advise against updating your EV module to V01_00_06 using the FWU file obtained from CODICOs download area prior to the 27th of June 2023.**
