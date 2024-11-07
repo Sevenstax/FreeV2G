@@ -1,0 +1,32 @@
+name: Close new issues due to new tracker
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  close-issues-new-tracker:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Thanks for reporting your issue! Unfortunately this issue tracker is no longer supported. Please use [our website](https://whitebeet.sevenstax.de/wiki/support/posting_issues/) from now on to report new issues. Thanks, and best regards!'
+            });
+            github.rest.issues.lock({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            github.rest.issues.update({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed'
+            });
+
