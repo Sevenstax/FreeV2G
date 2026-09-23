@@ -10,11 +10,11 @@
 
 The support for FreeV2G / WHITE Beet has been moved to a different issue tracker. Please use the following website for any future requests:
 
-https://whitebeet.sevenstax.de/wiki/support/posting_issues/
+https://whitebeet.sevenstax.de/support/posting_issues/
 
 All open issues will be addressed, but please note that new issues will be closed automatically. This repository will be archived on November 30th. You can access the FreeV2G releases here:
 
-https://whitebeet.sevenstax.de/wiki/releases/
+https://whitebeet.sevenstax.de/releases/
 
 Thank you for your contributions in the past!
 
